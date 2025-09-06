@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金价走势图表</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .chart-container {
+            padding: 30px;
+            position: relative;
+            height: 500px;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: #FFD700;
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            margin: 20px 30px;
+            border-radius: 8px;
+            border-left: 4px solid #c33;
+        }
+
+        .last-update {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .chart-container {
+                padding: 20px;
+                height: 400px;
+            }
+            
+            .controls {
+                padding: 15px 20px;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏆 金价实时走势</h1>
+            <p>基于 investing.com 数据的黄金价格追踪系统</p>
+        </div>
+
+        <div class="stats" id="statsContainer">
+            <div class="stat-card">
+                <div class="stat-value" id="currentPrice">--</div>
+                <div class="stat-label">当前价格 (USD/oz)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="priceChange">--</div>
+                <div class="stat-label">24小时变化</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="highPrice">--</div>
+                <div class="stat-label">24小时最高</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="lowPrice">--</div>
+                <div class="stat-label">24小时最低</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn active" onclick="loadData(24)">24小时</button>
+            <button class="btn" onclick="loadData(168)">7天</button>
+            <button class="btn" onclick="loadData(720)">30天</button>
+            <button class="btn" onclick="loadData(0)">全部</button>
+            <button class="btn" onclick="refreshData()">🔄 刷新</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="goldChart"></canvas>
+        </div>
+
+        <div class="last-update" id="lastUpdate">
+            最后更新: --
+        </div>
+    </div>
+
+    <script>
+        // Supabase 配置 - 请替换为你的实际配置
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+        let supabaseClient;
+        let chart;
+        let currentTimeRange = 24;
+
+        // 初始化 Supabase 客户端
+        function initSupabase() {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                showError('请在代码中配置正确的 Supabase URL 和 API Key');
+                return false;
+            }
+
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                return true;
+            } catch (error) {
+                showError('Supabase 初始化失败: ' + error.message);
+                return false;
+            }
+        }
+
+        // 显示加载状态
+        function showLoading() {
+            const chartContainer = document.querySelector('.chart-container');
+            chartContainer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>正在加载数据...</div>
+                </div>
+            `;
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const container = document.querySelector('.container');
+            const existingError = container.querySelector('.error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            container.insertBefore(errorDiv, container.querySelector('.controls'));
+        }
+
+        // 清除错误信息
+        function clearError() {
+            const existingError = document.querySelector('.error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+
+        // 加载金价数据
+        async function loadGoldPrices(hours = 24) {
+            if (!supabaseClient) return;
+
+            try {
+                clearError();
+                showLoading();
+
+                let query = supabaseClient
+                    .from('gold_prices')
+                    .select('price, timestamp')
+                    .order('timestamp', { ascending: true });
+
+                if (hours > 0) {
+                    const cutoffTime = new Date();
+                    cutoffTime.setHours(cutoffTime.getHours() - hours);
+                    query = query.gte('timestamp', cutoffTime.toISOString());
+                }
+
+                const { data, error } = await query.limit(1000);
+
+                if (error) {
+                    throw new Error(error.message);
+                }
+
+                if (!data || data.length === 0) {
+                    throw new Error('暂无数据，请稍后再试');
+                }
+
+                renderChart(data);
+                updateStats(data);
+                updateLastUpdateTime();
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showError('加载数据失败: ' + error.message);
+                
+                // 恢复图表容器
+                const chartContainer = document.querySelector('.chart-container');
+                chartContainer.innerHTML = '<canvas id="goldChart"></canvas>';
+            }
+        }
+
+        // 渲染图表
+        function renderChart(data) {
+            const chartContainer = document.querySelector('.chart-container');
+            chartContainer.innerHTML = '<canvas id="goldChart"></canvas>';
+
+            const ctx = document.getElementById('goldChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            const labels = data.map(item => {
+                const date = new Date(item.timestamp);
+                if (currentTimeRange <= 24) {
+                    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                } else if (currentTimeRange <= 168) {
+                    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit' });
+                } else {
+                    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                }
+            });
+
+            const prices = data.map(item => item.price);
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '金价 (USD/oz)',
+                        data: prices,
+                        borderColor: '#FFD700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#FFD700',
+                        pointBorderColor: '#FFA500',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#FFD700',
+                            bodyColor: 'white',
+                            borderColor: '#FFD700',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '时间',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '价格 (USD/oz)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // 更新统计信息
+        function updateStats(data) {
+            if (!data || data.length === 0) return;
+
+            const prices = data.map(item => item.price);
+            const currentPrice = prices[prices.length - 1];
+            const previousPrice = prices.length > 1 ? prices[prices.length - 2] : currentPrice;
+            const priceChange = currentPrice - previousPrice;
+            const changePercent = previousPrice > 0 ? (priceChange / previousPrice * 100) : 0;
+            const highPrice = Math.max(...prices);
+            const lowPrice = Math.min(...prices);
+
+            document.getElementById('currentPrice').textContent = '$' + currentPrice.toFixed(2);
+            
+            const changeElement = document.getElementById('priceChange');
+            const changeText = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + ' (' + 
+                              (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
+            changeElement.textContent = changeText;
+            changeElement.style.color = priceChange >= 0 ? '#28a745' : '#dc3545';
+            
+            document.getElementById('highPrice').textContent = '$' + highPrice.toFixed(2);
+            document.getElementById('lowPrice').textContent = '$' + lowPrice.toFixed(2);
+        }
+
+        // 更新最后更新时间
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                '最后更新: ' + now.toLocaleString('zh-CN');
+        }
+
+        // 加载数据
+        function loadData(hours) {
+            currentTimeRange = hours;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadGoldPrices(hours);
+        }
+
+        // 刷新数据
+        function refreshData() {
+            loadGoldPrices(currentTimeRange);
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            if (initSupabase()) {
+                loadGoldPrices(24);
+                
+                // 设置自动刷新（每5分钟）
+                setInterval(refreshData, 5 * 60 * 1000);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  gold-scraper:
+    build: .
+    container_name: gold-price-scraper
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SCRAPER_HEADLESS=true
+      - SCRAPER_TIMEOUT=30000
+      - SCRAPER_RETRY_COUNT=3
+      - GOLD_PRICE_SCHEDULE=0 * * * *
+      - LOG_LEVEL=info
+      - LOG_FILE_PATH=/app/logs
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    networks:
+      - scraper-network
+    # 如果需要 Web 界面，取消注释下面的端口映射
+    # ports:
+    #   - "3000:3000"
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Health check')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  scraper-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
+  data:
+    driver: local

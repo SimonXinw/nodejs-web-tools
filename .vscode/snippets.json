@@ -1,0 +1,115 @@
+{
+  "New Scraper Class": {
+    "prefix": "scraper",
+    "body": [
+      "import { BaseScraper } from '../core/base-scraper';",
+      "import { ScrapedData } from '../types';",
+      "import { logger } from '../utils/logger';",
+      "",
+      "interface ${1:Custom}Data extends ScrapedData {",
+      "  value: ${2:number};",
+      "}",
+      "",
+      "export class ${1:Custom}Scraper extends BaseScraper<${1:Custom}Data> {",
+      "  protected async performScrape(): Promise<${1:Custom}Data> {",
+      "    const page = await this.createPage();",
+      "    ",
+      "    try {",
+      "      await this.navigateToPage(page, '${3:https://example.com}');",
+      "      ",
+      "      const data = await this.getElementText(page, '${4:.selector}');",
+      "      ",
+      "      return {",
+      "        value: ${5:parseFloat(data)},",
+      "        timestamp: new Date().toISOString(),",
+      "        source: this.getSourceName(),",
+      "        metadata: {}",
+      "      };",
+      "    } finally {",
+      "      await page.close();",
+      "    }",
+      "  }",
+      "",
+      "  public getSourceName(): string {",
+      "    return '${6:example.com}';",
+      "  }",
+      "}"
+    ],
+    "description": "创建新的爬虫类"
+  },
+  "Logger Statement": {
+    "prefix": "log",
+    "body": [
+      "logger.${1|info,error,warn,debug|}('${2:message}', ${3:data});"
+    ],
+    "description": "添加日志语句"
+  },
+  "Try Catch Block": {
+    "prefix": "trylog",
+    "body": [
+      "try {",
+      "  ${1:// code}",
+      "} catch (error) {",
+      "  logger.error('${2:operation failed}', error);",
+      "  ${3:throw error;}",
+      "}"
+    ],
+    "description": "带日志的 try-catch 块"
+  },
+  "Async Function": {
+    "prefix": "afunc",
+    "body": [
+      "async ${1:function}(${2:params}): Promise<${3:void}> {",
+      "  try {",
+      "    ${4:// implementation}",
+      "  } catch (error) {",
+      "    logger.error('${1:function} failed', error);",
+      "    throw error;",
+      "  }",
+      "}"
+    ],
+    "description": "异步函数模板"
+  },
+  "Environment Variable": {
+    "prefix": "env",
+    "body": [
+      "process.env.${1:VARIABLE_NAME}${2: || '${3:default_value}'}"
+    ],
+    "description": "环境变量访问"
+  },
+  "Supabase Query": {
+    "prefix": "supa",
+    "body": [
+      "const { data, error } = await this.client",
+      "  .from('${1:table_name}')",
+      "  .${2|select,insert,update,delete|}(${3:'*'})",
+      "  ${4:.eq('column', 'value')}",
+      "  ${5:.limit(100)};",
+      "",
+      "if (error) {",
+      "  logger.error('Database operation failed', error);",
+      "  throw error;",
+      "}",
+      "",
+      "return data;"
+    ],
+    "description": "Supabase 查询模板"
+  },
+  "Cron Schedule": {
+    "prefix": "cron",
+    "body": [
+      "taskScheduler.addTask(",
+      "  '${1:task-name}',",
+      "  {",
+      "    cronExpression: '${2:0 * * * *}', // ${3:every hour}",
+      "    timezone: 'Asia/Shanghai',",
+      "    immediate: ${4:false}",
+      "  },",
+      "  async () => {",
+      "    ${5:// task implementation}",
+      "  }",
+      ");"
+    ],
+    "description": "定时任务模板"
+  }
+}
