@@ -1,16 +1,16 @@
 import { Page } from 'playwright';
 import { BaseScraper } from '../core/base-scraper';
-import { GoldPriceData, ScraperConfig } from '../types';
 import { SupabaseDatabase } from '../database/supabase-client';
+import { GoldPriceData, ScraperConfig } from '../types';
+import { formatTimestamp, parsePrice } from '../utils/helpers';
 import { logger } from '../utils/logger';
-import { parsePrice, formatTimestamp } from '../utils/helpers';
 
 /**
  * 金价爬虫类 - 专门爬取 investing.com 的金价数据
  */
 export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   private database: SupabaseDatabase;
-  private readonly targetUrl = 'https://www.investing.com/commodities/gold';
+  private readonly targetUrl = 'https://quote.eastmoney.com/globalfuture/GC00Y.html';
 
   constructor(config: Partial<ScraperConfig> = {}) {
     super(config);
@@ -27,16 +27,12 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       // 访问金价页面
       await this.navigateToPage(page, this.targetUrl);
 
-      // 等待页面加载完成
+      // 等待页面网络空闲（networkidle 表示网络连接数小于等于2，常用于判断页面资源加载完毕）
       await page.waitForLoadState('networkidle');
 
       // 尝试多个可能的价格选择器
       const priceSelectors = [
-        '[data-test="instrument-price-last"]',
-        '.text-2xl.font-bold.leading-5',
-        '.instrument-price_last__KQzyA',
-        '#last_last',
-        '.pid-8830-last'
+        '#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_up'
       ];
 
       let priceText: string | null = null;
@@ -168,7 +164,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   public async scrapeAndSave(): Promise<boolean> {
     try {
       logger.info('开始执行金价爬取任务...');
-      
+
       const data = await this.scrape();
       if (!data) {
         logger.error('爬取数据失败');

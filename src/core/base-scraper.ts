@@ -1,7 +1,7 @@
-import { chromium, Browser, BrowserContext, Page } from 'playwright';
-import { ScraperConfig, ScrapedData } from '../types';
-import { logger } from '../utils/logger';
+import { Browser, BrowserContext, chromium, Page } from 'playwright';
+import { ScrapedData, ScraperConfig } from '../types';
 import { randomDelay, withRetry } from '../utils/helpers';
+import { logger } from '../utils/logger';
 
 /**
  * 爬虫基类 - 提供通用的爬虫功能
@@ -60,16 +60,16 @@ export abstract class BaseScraper<T extends ScrapedData> {
       });
 
       // 反检测脚本
-      await this.context.addInitScript(() => {
+      await this.context.addInitScript(`() => {
         // 隐藏webdriver特征
         Object.defineProperty(navigator, 'webdriver', {
           get: () => undefined,
         });
 
         // 删除自动化检测特征
-        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
-        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+        delete window.cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        delete window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        delete window.cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
 
         // 模拟真实的Chrome特征
         Object.defineProperty(navigator, 'plugins', {
@@ -79,7 +79,7 @@ export abstract class BaseScraper<T extends ScrapedData> {
         Object.defineProperty(navigator, 'languages', {
           get: () => ['en-US', 'en'],
         });
-      });
+      }`);
 
       logger.info('浏览器初始化成功');
     } catch (error) {
@@ -97,10 +97,10 @@ export abstract class BaseScraper<T extends ScrapedData> {
     }
 
     const page = await this.context!.newPage();
-    
+
     // 设置超时时间
     page.setDefaultTimeout(this.config.timeout);
-    
+
     return page;
   }
 
@@ -109,7 +109,7 @@ export abstract class BaseScraper<T extends ScrapedData> {
    */
   protected async navigateToPage(page: Page, url: string): Promise<void> {
     await randomDelay(500, 1500);
-    
+
     await page.goto(url, {
       waitUntil: 'networkidle',
       timeout: this.config.timeout

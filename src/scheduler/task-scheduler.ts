@@ -36,9 +36,9 @@ export class TaskScheduler {
         try {
           logger.info(`开始执行定时任务: ${taskName}`);
           const startTime = Date.now();
-          
+
           await taskFunction();
-          
+
           const duration = Date.now() - startTime;
           logger.info(`定时任务 ${taskName} 执行完成，耗时: ${duration}ms`);
         } catch (error) {
@@ -123,7 +123,7 @@ export class TaskScheduler {
     }
 
     try {
-      task.destroy();
+      task.stop();
       this.tasks.delete(taskName);
       logger.info(`定时任务 ${taskName} 已删除`);
       return true;
@@ -138,7 +138,7 @@ export class TaskScheduler {
    */
   public startAllTasks(): void {
     logger.info(`启动所有定时任务，共 ${this.tasks.size} 个任务`);
-    
+
     for (const [taskName, task] of this.tasks) {
       try {
         task.start();
@@ -154,7 +154,7 @@ export class TaskScheduler {
    */
   public stopAllTasks(): void {
     logger.info(`停止所有定时任务，共 ${this.tasks.size} 个任务`);
-    
+
     for (const [taskName, task] of this.tasks) {
       try {
         task.stop();
@@ -183,14 +183,14 @@ export class TaskScheduler {
    */
   public getAllTasksInfo(): Array<{ name: string; status: string }> {
     const tasksInfo: Array<{ name: string; status: string }> = [];
-    
+
     for (const taskName of this.tasks.keys()) {
       tasksInfo.push({
         name: taskName,
         status: this.getTaskStatus(taskName)
       });
     }
-    
+
     return tasksInfo;
   }
 
@@ -199,16 +199,16 @@ export class TaskScheduler {
    */
   public cleanup(): void {
     logger.info('清理所有定时任务...');
-    
+
     for (const [taskName, task] of this.tasks) {
       try {
-        task.destroy();
+        task.stop();
         logger.info(`任务 ${taskName} 已清理`);
       } catch (error) {
         logger.error(`清理任务 ${taskName} 失败`, error);
       }
     }
-    
+
     this.tasks.clear();
     logger.info('所有定时任务清理完成');
   }
@@ -220,9 +220,9 @@ export class TaskScheduler {
     try {
       logger.info(`手动执行任务: ${taskName}`);
       const startTime = Date.now();
-      
+
       await taskFunction();
-      
+
       const duration = Date.now() - startTime;
       logger.info(`手动任务 ${taskName} 执行完成，耗时: ${duration}ms`);
       return true;
