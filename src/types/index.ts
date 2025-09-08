@@ -29,7 +29,7 @@ export interface GoldPriceData extends ScrapedData {
   market: string; // 市场类型
 }
 
-// 数据库记录接口
+// 数据库记录接口 - 与 gold_prices 表结构保持一致
 export interface DatabaseRecord {
   id?: number;
   price: number;

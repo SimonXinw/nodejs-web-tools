@@ -1,25 +1,27 @@
-import { Page } from 'playwright';
-import { BaseScraper } from '../core/base-scraper';
-import { SupabaseDatabase } from '../database/supabase-client';
-import { GoldPriceData, ScraperConfig } from '../types';
-import { formatTimestamp, parsePrice } from '../utils/helpers';
-import { logger } from '../utils/logger';
+import { Page } from "playwright";
+import { BaseScraper } from "../core/base-scraper";
+import { SupabaseDatabase } from "../database/supabase-client";
+import { GoldPriceData, ScraperConfig } from "../types";
+import { formatTimestamp, parsePrice } from "../utils/helpers";
+import { logger } from "../utils/logger";
 
 /**
  * 金价爬虫类 - 专门爬取 investing.com 的金价数据
  */
 export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   private database: SupabaseDatabase;
-  private readonly targetUrl = 'https://quote.eastmoney.com/globalfuture/GC00Y.html';
+  private readonly targetUrl =
+    "https://quote.eastmoney.com/globalfuture/GC00Y.html";
 
   constructor(config: Partial<ScraperConfig> = {}) {
     super(config);
-    this.database = new SupabaseDatabase('gold_prices');
+    this.database = new SupabaseDatabase("gold_prices");
   }
 
   /**
    * 执行具体的金价爬取逻辑
    */
+  // protected 是 TypeScript/JavaScript 中的访问修饰符，表示该方法只能在当前类及其子类中访问，外部无法直接调用
   protected async performScrape(): Promise<GoldPriceData> {
     const page = await this.createPage();
 
@@ -28,15 +30,16 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       await this.navigateToPage(page, this.targetUrl);
 
       // 等待页面网络空闲（networkidle 表示网络连接数小于等于2，常用于判断页面资源加载完毕）
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState("networkidle");
 
       // 尝试多个可能的价格选择器
       const priceSelectors = [
-        '#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_up'
+        "#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_up",
+        "#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_down",
       ];
 
       let priceText: string | null = null;
-      let usedSelector = '';
+      let usedSelector = "";
 
       // 依次尝试不同的选择器
       for (const selector of priceSelectors) {
@@ -51,7 +54,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       if (!priceText) {
         // 如果所有选择器都失败，尝试截图调试
         await page.screenshot({ path: `debug-${Date.now()}.png` });
-        throw new Error('无法找到金价元素');
+        throw new Error("无法找到金价元素");
       }
 
       // 解析价格
@@ -67,20 +70,19 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
         value: price,
         timestamp: formatTimestamp(),
         source: this.getSourceName(),
-        currency: 'USD',
-        market: 'COMEX',
+        currency: "USD",
+        market: "COMEX",
         metadata: {
           selector: usedSelector,
           rawText: priceText,
-          ...marketInfo
-        }
+          ...marketInfo,
+        },
       };
 
       logger.info(`成功爬取金价数据: $${price}`);
       return goldPriceData;
-
     } catch (error) {
-      logger.error('金价爬取失败', error);
+      logger.error("金价爬取失败", error);
       throw error;
     } finally {
       await page.close();
@@ -97,7 +99,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       // 尝试获取涨跌幅
       const changeSelectors = [
         '[data-test="instrument-price-change"]',
-        '.instrument-price_change__JbFW4'
+        ".instrument-price_change__JbFW4",
       ];
 
       for (const selector of changeSelectors) {
@@ -111,7 +113,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       // 尝试获取涨跌百分比
       const percentSelectors = [
         '[data-test="instrument-price-change-percent"]',
-        '.instrument-price_changePercent__qyGUr'
+        ".instrument-price_changePercent__qyGUr",
       ];
 
       for (const selector of percentSelectors) {
@@ -124,8 +126,8 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 
       // 获取更新时间
       const timeSelectors = [
-        '.instrument-metadata_time__L_-5B',
-        '.text-xs.text-gray-500'
+        ".instrument-metadata_time__L_-5B",
+        ".text-xs.text-gray-500",
       ];
 
       for (const selector of timeSelectors) {
@@ -135,9 +137,8 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
           break;
         }
       }
-
     } catch (error) {
-      logger.warn('获取市场附加信息失败', error);
+      logger.warn("获取市场附加信息失败", error);
     }
 
     return marketInfo;
@@ -152,7 +153,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       timestamp: data.timestamp,
       source: data.source,
       currency: data.currency,
-      market: data.market
+      market: data.market,
     };
 
     return await this.database.insertRecord(record);
@@ -163,11 +164,11 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
    */
   public async scrapeAndSave(): Promise<boolean> {
     try {
-      logger.info('开始执行金价爬取任务...');
+      logger.info("开始执行金价爬取任务...");
 
       const data = await this.scrape();
       if (!data) {
-        logger.error('爬取数据失败');
+        logger.error("爬取数据失败");
         return false;
       }
 
@@ -176,11 +177,11 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
         logger.info(`金价爬取任务完成: $${data.value}`);
         return true;
       } else {
-        logger.error('保存数据到数据库失败');
+        logger.error("保存数据到数据库失败");
         return false;
       }
     } catch (error) {
-      logger.error('金价爬取任务异常', error);
+      logger.error("金价爬取任务异常", error);
       return false;
     }
   }
@@ -189,7 +190,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
    * 获取数据源名称
    */
   public getSourceName(): string {
-    return 'investing.com';
+    return "investing.com";
   }
 
   /**

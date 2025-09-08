@@ -18,6 +18,7 @@ export class SupabaseDatabase {
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!
     );
+
     this.tableName = tableName;
 
     logger.info(`Supabase 客户端初始化完成，表名: ${tableName}`);
