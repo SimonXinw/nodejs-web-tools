@@ -50,7 +50,8 @@ class ScraperTester {
         this.addResult('数据库连接', false, 'Supabase 连接失败');
       }
     } catch (error) {
-      this.addResult('数据库连接', false, `连接异常: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.addResult('数据库连接', false, `连接异常: ${errorMessage}`);
     }
   }
 
@@ -58,17 +59,18 @@ class ScraperTester {
     console.log('\n🕷️ 测试数据爬取...');
     try {
       const data = await this.scraper.scrape();
-      if (data && data.value > 0) {
-        this.addResult('数据爬取', true, `成功获取金价: $${data.value}`, {
-          price: data.value,
-          timestamp: data.timestamp,
+      if (data && data.price > 0) {
+        this.addResult('数据爬取', true, `成功获取金价: $${data.price}`, {
+          price: data.price,
+          created_at: data.created_at,
           source: data.source
         });
       } else {
         this.addResult('数据爬取', false, '爬取数据无效或为空');
       }
     } catch (error) {
-      this.addResult('数据爬取', false, `爬取失败: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.addResult('数据爬取', false, `爬取失败: ${errorMessage}`);
     }
   }
 
@@ -82,7 +84,8 @@ class ScraperTester {
         this.addResult('数据保存', false, '数据保存失败');
       }
     } catch (error) {
-      this.addResult('数据保存', false, `保存异常: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.addResult('数据保存', false, `保存异常: ${errorMessage}`);
     }
   }
 
@@ -100,7 +103,8 @@ class ScraperTester {
         this.addResult('历史数据', false, '未找到历史数据');
       }
     } catch (error) {
-      this.addResult('历史数据', false, `获取失败: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.addResult('历史数据', false, `获取失败: ${errorMessage}`);
     }
   }
 
@@ -173,7 +177,8 @@ async function main() {
     await tester.runAllTests();
   } catch (error) {
     logger.error('测试过程中出现未捕获的错误', error);
-    console.error('❌ 测试异常:', error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('❌ 测试异常:', errorMessage);
     process.exit(1);
   }
 }

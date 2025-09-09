@@ -9,7 +9,7 @@ import path from 'path';
 import { GoldPriceScraper } from '../scrapers/gold-price-scraper';
 import { logger } from '../utils/logger';
 
-const app = express();
+const app: express.Application = express();
 const PORT = process.env.API_PORT || 3000;
 
 // 中间件
@@ -24,7 +24,7 @@ const goldScraper = new GoldPriceScraper();
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    timestamp: new Date().toISOString(),
+    created_at: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage()
   });
@@ -45,7 +45,7 @@ app.get('/api/gold/latest', async (req, res) => {
     res.json({
       success: true,
       data: data[0],
-      timestamp: new Date().toISOString()
+      created_at: new Date().toISOString()
     });
     
   } catch (error) {
@@ -67,7 +67,7 @@ app.get('/api/gold/history', async (req, res) => {
       success: true,
       data: data,
       count: data.length,
-      timestamp: new Date().toISOString()
+      created_at: new Date().toISOString()
     });
     
   } catch (error) {
@@ -116,7 +116,7 @@ app.post('/api/gold/scrape', async (req, res) => {
       res.json({
         success: true,
         message: '爬取任务执行成功',
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
     } else {
       res.status(500).json({
@@ -145,12 +145,12 @@ app.get('/api/status', async (req, res) => {
       success: true,
       status: {
         database: dbConnected ? 'connected' : 'disconnected',
-        lastUpdate: latestData.length > 0 ? latestData[0].timestamp : null,
+        lastUpdate: latestData.length > 0 ? latestData[0].created_at : null,
         uptime: process.uptime(),
         memory: process.memoryUsage(),
         version: process.env.npm_package_version || '1.0.0'
       },
-      timestamp: new Date().toISOString()
+      created_at: new Date().toISOString()
     });
     
   } catch (error) {

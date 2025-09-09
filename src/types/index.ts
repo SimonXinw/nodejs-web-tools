@@ -1,8 +1,4 @@
-/**
- * 通用数据类型定义
- */
-
-// 爬虫配置接口
+﻿// 爬虫配置接口
 export interface ScraperConfig {
   headless?: boolean;
   timeout?: number;
@@ -16,28 +12,25 @@ export interface ScraperConfig {
 
 // 爬虫结果接口
 export interface ScrapedData {
-  value: any;
-  timestamp: string;
+  price: any;
   source: string;
-  metadata?: Record<string, any>;
 }
 
 // 金价数据接口
 export interface GoldPriceData extends ScrapedData {
-  value: number; // 金价
   currency: string; // 货币单位
-  market: string; // 市场类型
+  created_at: string; // 市场类型
+  time_period: string; // 市场类型
 }
 
-// 数据库记录接口 - 与 gold_prices 表结构保持一致
+// 数据库记录接口 - 与 gold_price 表结构保持一致
 export interface DatabaseRecord {
   id?: number;
   price: number;
-  timestamp: string;
-  source: string;
+  created_at: string;
+  source?: string;
   currency?: string;
-  market?: string;
-  created_at?: string;
+  time_period?: string;
 }
 
 // 调度器配置接口

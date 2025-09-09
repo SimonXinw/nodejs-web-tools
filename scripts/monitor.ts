@@ -13,7 +13,6 @@ import { logger } from '../src/utils/logger';
 dotenv.config();
 
 interface MonitorReport {
-  timestamp: string;
   dataHealth: {
     totalRecords: number;
     recentRecords: number;
@@ -33,7 +32,7 @@ class SystemMonitor {
   private database: SupabaseDatabase;
 
   constructor() {
-    this.database = new SupabaseDatabase('gold_prices');
+    this.database = new SupabaseDatabase('gold_price');
   }
 
   /**
@@ -59,19 +58,19 @@ class SystemMonitor {
       // 获取最新数据时间
       const latestData = await this.database.getLatestRecords(1);
       const lastUpdateTime = latestData.length > 0 
-        ? latestData[0].timestamp 
+        ? latestData[0].created_at 
         : 'N/A';
       
       // 计算数据间隔（检测数据缺失）
       let dataGaps = 0;
       if (recentData.length > 1) {
         const sortedData = recentData.sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
         
         for (let i = 1; i < sortedData.length; i++) {
-          const prevTime = new Date(sortedData[i - 1].timestamp).getTime();
-          const currTime = new Date(sortedData[i].timestamp).getTime();
+          const prevTime = new Date(sortedData[i - 1].created_at).getTime();
+          const currTime = new Date(sortedData[i].created_at).getTime();
           const gap = (currTime - prevTime) / (1000 * 60 * 60); // 小时
           
           // 如果间隔超过2小时，认为是数据缺失
@@ -194,7 +193,7 @@ class SystemMonitor {
       const alerts = this.generateAlerts(dataHealth);
       
       const report: MonitorReport = {
-        timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
         dataHealth,
         systemHealth,
         alerts
@@ -214,7 +213,7 @@ class SystemMonitor {
   printReport(report: MonitorReport): void {
     console.log('\n📊 系统监控报告');
     console.log('='.repeat(50));
-    console.log(`🕐 生成时间: ${new Date(report.timestamp).toLocaleString('zh-CN')}`);
+    console.log(`🕐 生成时间: ${new Date(report.created_at).toLocaleString('zh-CN')}`);
     
     console.log('\n📈 数据健康状况:');
     console.log(`   总记录数: ${report.dataHealth.totalRecords.toLocaleString()}`);

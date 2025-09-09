@@ -332,7 +332,7 @@
             }
 
             const labels = data.map(item => {
-                const date = new Date(item.timestamp);
+                const date = new Date(item.created_at);
                 if (currentTimeRange <= 24) {
                     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
                 } else if (currentTimeRange <= 168) {

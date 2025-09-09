@@ -74,6 +74,26 @@
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
+      "name": "🐛 [有头调试] 金价爬虫可视化调试模式",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/scrapers/gold-price-scraper.ts",
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "env": {
+        "NODE_ENV": "development",
+        "SCRAPER_HEADLESS": "false",
+        "SCRAPER_TIMEOUT": "90000",
+        "LOG_LEVEL": "debug"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": false,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+    },
+    {
       "name": "🧪 [功能测试] 爬虫系统完整性测试",
       "type": "node",
       "request": "launch",

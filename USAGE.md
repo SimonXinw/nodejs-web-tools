@@ -342,7 +342,7 @@ class CustomScraper extends BaseScraper<CustomData> {
     const data = await this.getElementText(page, '.price');
     
     return {
-      value: parseFloat(data),
+      price: parseFloat(data),
       timestamp: new Date().toISOString(),
       source: this.getSourceName()
     };

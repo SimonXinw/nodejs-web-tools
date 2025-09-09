@@ -107,6 +107,7 @@ SCRAPER_HEADLESS=true   # 无头模式
 ### 4. 运行项目
 
 #### 方式一：使用主入口文件（推荐）
+
 ```bash
 # 显示帮助信息
 node main.js
@@ -140,6 +141,7 @@ node main.js --setup
 ```
 
 #### 方式二：使用 npm 脚本
+
 ```bash
 # 开发模式（仅爬虫）
 npm run dev
@@ -186,6 +188,7 @@ npm run clean
 项目包含完整的 VS Code 调试配置：
 
 #### 调试配置
+
 - 🚀 **启动主程序** - 开发模式调试
 - 🌐 **启动 API 服务器** - 调试 API 服务
 - 🎯 **手动执行爬取** - 调试单次爬取
@@ -194,12 +197,15 @@ npm run clean
 - 📊 **系统监控** - 调试监控功能
 
 #### 使用方法
+
 1. 按 `F5` 或点击调试面板的运行按钮
 2. 选择对应的调试配置
 3. 设置断点进行调试
 
 #### API 测试
+
 使用 `.vscode/api-test.http` 文件测试 API 接口：
+
 1. 安装 REST Client 扩展
 2. 启动 API 服务器
 3. 点击 HTTP 文件中的 "Send Request"
@@ -340,8 +346,8 @@ class CustomScraper extends BaseScraper<CustomData> {
     const data = await this.getElementText(page, ".price");
 
     return {
-      value: parseFloat(data),
-      timestamp: new Date().toISOString(),
+      price: parseFloat(data),
+      created_at: new Date().toISOString(),
       source: this.getSourceName(),
     };
   }

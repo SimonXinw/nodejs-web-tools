@@ -13,14 +13,22 @@
     "start": "node dist/index.js",
     "start:api": "node dist/index.js --api",
     "scrape:gold": "ts-node src/scrapers/gold-price-scraper.ts",
+    "scrape:gold:debug": "ts-node src/scrapers/gold-price-scraper.ts",
     "setup": "node scripts/setup.js",
     "test:scraper": "ts-node scripts/test-scraper.ts",
     "backup": "ts-node scripts/backup-data.ts",
     "monitor": "ts-node scripts/monitor.ts",
+    "debug": "ts-node -e \"import('./src/scrapers/gold-price-scraper.ts').then(m => m.GoldPriceScraper.createDebugInstance().scrapeAndSave())\"",
     "clean": "rimraf dist logs/*.log",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["scraper", "playwright", "supabase", "gold-price", "crawler"],
+  "keywords": [
+    "scraper",
+    "playwright",
+    "supabase",
+    "gold-price",
+    "crawler"
+  ],
   "author": "Simon",
   "license": "MIT",
   "dependencies": {

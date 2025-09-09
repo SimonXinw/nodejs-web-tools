@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS gold_prices (
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   source VARCHAR(50) NOT NULL DEFAULT 'investing.com',
   currency VARCHAR(10) DEFAULT 'USD',
-  market VARCHAR(20) DEFAULT 'COMEX',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  time_period VARCHAR(20) DEFAULT '1d'
 );
 
 -- 创建索引以提高查询性能
@@ -24,10 +24,8 @@ CREATE INDEX IF NOT EXISTS idx_gold_prices_timestamp_source ON gold_prices(times
 COMMENT ON TABLE gold_prices IS '金价历史数据表';
 COMMENT ON COLUMN gold_prices.id IS '主键ID';
 COMMENT ON COLUMN gold_prices.price IS '金价（美元/盎司）';
-COMMENT ON COLUMN gold_prices.timestamp IS '数据时间戳';
 COMMENT ON COLUMN gold_prices.source IS '数据来源';
 COMMENT ON COLUMN gold_prices.currency IS '货币单位';
-COMMENT ON COLUMN gold_prices.market IS '市场类型';
 COMMENT ON COLUMN gold_prices.created_at IS '记录创建时间';
 
 -- 启用行级安全策略（RLS）
@@ -48,7 +46,7 @@ SELECT
   timestamp,
   source,
   currency,
-  market
+  time_period
 FROM gold_prices 
 ORDER BY timestamp DESC 
 LIMIT 1;
