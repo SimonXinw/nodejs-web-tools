@@ -1,7 +1,7 @@
 {
   "name": "nodejs-web-tools",
   "version": "1.0.0",
-  "description": "基于 Node.js 和 Playwright 的网页数据爬虫工具集",
+  "description": "基于 Node.js 和 Playwright 的金价爬虫工具",
   "main": "main.js",
   "bin": {
     "gold-scraper": "./main.js"
@@ -12,15 +12,23 @@
     "dev:api": "ts-node src/index.ts --api",
     "start": "node dist/index.js",
     "start:api": "node dist/index.js --api",
-    "scrape:gold": "ts-node src/scrapers/gold-price-scraper.ts",
-    "scrape:gold:debug": "ts-node src/scrapers/gold-price-scraper.ts",
     "setup": "node scripts/setup.js",
     "test:scraper": "ts-node scripts/test-scraper.ts",
-    "backup": "ts-node scripts/backup-data.ts",
-    "monitor": "ts-node scripts/monitor.ts",
-    "debug": "ts-node -e \"import('./src/scrapers/gold-price-scraper.ts').then(m => m.GoldPriceScraper.createDebugInstance().scrapeAndSave())\"",
     "clean": "rimraf dist logs/*.log",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop gold-scraper",
+    "pm2:restart": "pm2 restart gold-scraper",
+    "pm2:delete": "pm2 delete gold-scraper",
+    "pm2:logs": "pm2 logs gold-scraper",
+    "pm2:monit": "pm2 monit",
+    "docker:build": "docker build -t gold-scraper .",
+    "docker:run": "docker run -d --name gold-scraper --env-file .env -p 3000:3000 -v $(pwd)/logs:/app/logs gold-scraper",
+    "docker:stop": "docker stop gold-scraper",
+    "docker:remove": "docker rm gold-scraper",
+    "docker:logs": "docker logs -f gold-scraper",
+    "compose:up": "docker-compose up -d",
+    "compose:down": "docker-compose down",
+    "compose:logs": "docker-compose logs -f"
   },
   "keywords": [
     "scraper",

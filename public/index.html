@@ -279,45 +279,66 @@
 
         // 加载金价数据
         async function loadGoldPrices(hours = 24) {
+
             if (!supabaseClient) return;
 
             try {
+
                 clearError();
+
                 showLoading();
 
                 let query = supabaseClient
-                    .from('gold_prices')
-                    .select('price, timestamp')
-                    .order('timestamp', { ascending: true });
+
+                    .from('gold_price')
+
+                    .select('price, created_at')
+
+                    .order('created_at', { ascending: true });
 
                 if (hours > 0) {
+
                     const cutoffTime = new Date();
+
                     cutoffTime.setHours(cutoffTime.getHours() - hours);
-                    query = query.gte('timestamp', cutoffTime.toISOString());
+
+                    query = query.gte('created_at', cutoffTime.toISOString());
+
                 }
 
                 const { data, error } = await query.limit(1000);
 
                 if (error) {
+
                     throw new Error(error.message);
+
                 }
 
                 if (!data || data.length === 0) {
+
                     throw new Error('暂无数据，请稍后再试');
+
                 }
 
                 renderChart(data);
+
                 updateStats(data);
+
                 updateLastUpdateTime();
 
             } catch (error) {
+
                 console.error('加载数据失败:', error);
+
                 showError('加载数据失败: ' + error.message);
                 
                 // 恢复图表容器
                 const chartContainer = document.querySelector('.chart-container');
+
                 chartContainer.innerHTML = '<canvas id="goldChart"></canvas>';
+
             }
+
         }
 
         // 渲染图表
