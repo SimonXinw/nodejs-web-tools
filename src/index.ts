@@ -160,51 +160,52 @@ class Application {
   }
 }
 
-// 创建应用实例
-const app = new Application();
+// 更加规范的做法是将主流程包裹在一个 async 函数中，然后立即执行（IIFE），这样可以更好地处理异步流程和异常，避免多次 process.exit(0) 导致的潜在问题。
+(async () => {
+  // 创建应用实例
+  const app = new Application();
 
-// 处理命令行参数
-const args = process.argv.slice(2);
+  // 处理命令行参数
+  const args = process.argv.slice(2);
 
-// 手动执行模式
-if (args.includes("--manual") || args.includes("-m")) {
-  console.log("手动执行模式 >>>>>>>>", process.env);
-  app
-    .manualScrape()
-    .then(() => {
+  // 手动执行模式
+  if (args.includes("--manual") || args.includes("-m")) {
+    console.log("手动执行模式 >>>>>>>>", process.env);
+    try {
+      await app.manualScrape();
       process.exit(0);
-    })
-    .catch((error) => {
+    } catch (error) {
       logger.error("手动执行失败", error);
       process.exit(1);
-    });
-  // 直接 return，避免继续往下执行
-  process.exit(0);
-}
-// 查看历史数据
+    }
+    return; // 理论上不会执行到这里
+  }
 
-if (args.includes("--history") || args.includes("-h")) {
-  const limit = parseInt(
-    args[args.indexOf("--history") + 1] || args[args.indexOf("-h") + 1] || "10"
-  );
-
-  app
-    .getHistoricalData(limit)
-    .then((data) => {
+  // 查看历史数据
+  if (args.includes("--history") || args.includes("-h")) {
+    const limit = parseInt(
+      args[args.indexOf("--history") + 1] ||
+        args[args.indexOf("-h") + 1] ||
+        "10"
+    );
+    try {
+      const data = await app.getHistoricalData(limit);
       console.log("历史数据:", JSON.stringify(data, null, 2));
       process.exit(0);
-    })
-    .catch((error) => {
+    } catch (error) {
       logger.error("获取历史数据失败", error);
       process.exit(1);
-    });
-  process.exit(0);
-}
+    }
+    return;
+  }
 
-// 正常启动模式
-app.start().catch((error) => {
-  logger.error("应用程序启动失败", error);
-  process.exit(1);
-});
+  // 正常启动模式
+  try {
+    await app.start();
+  } catch (error) {
+    logger.error("应用程序启动失败", error);
+    process.exit(1);
+  }
+})();
 
 export default Application;
