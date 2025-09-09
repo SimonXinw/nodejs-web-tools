@@ -148,7 +148,6 @@ nodejs-web-tools/
 │   └── index.ts           # 程序入口
 ├── scripts/               # 工具脚本
 │   ├── setup.js               # 项目初始化
-│   ├── test-scraper.ts        # 功能测试
 │   └── init-database.sql      # 数据库初始化
 ├── public/                # 前端文件
 │   └── index.html         # 数据展示页面
