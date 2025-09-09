@@ -166,8 +166,9 @@ const app = new Application();
 // 处理命令行参数
 const args = process.argv.slice(2);
 
+// 手动执行模式
 if (args.includes("--manual") || args.includes("-m")) {
-  // 手动执行模式
+  console.log("手动执行模式 >>>>>>>>", process.env);
   app
     .manualScrape()
     .then(() => {
@@ -175,11 +176,14 @@ if (args.includes("--manual") || args.includes("-m")) {
     })
     .catch((error) => {
       logger.error("手动执行失败", error);
-
       process.exit(1);
     });
-} else if (args.includes("--history") || args.includes("-h")) {
-  // 查看历史数据
+  // 直接 return，避免继续往下执行
+  process.exit(0);
+}
+// 查看历史数据
+
+if (args.includes("--history") || args.includes("-h")) {
   const limit = parseInt(
     args[args.indexOf("--history") + 1] || args[args.indexOf("-h") + 1] || "10"
   );
@@ -188,21 +192,19 @@ if (args.includes("--manual") || args.includes("-m")) {
     .getHistoricalData(limit)
     .then((data) => {
       console.log("历史数据:", JSON.stringify(data, null, 2));
-
       process.exit(0);
     })
     .catch((error) => {
       logger.error("获取历史数据失败", error);
-
       process.exit(1);
     });
-} else {
-  // 正常启动模式
-  app.start().catch((error) => {
-    logger.error("应用程序启动失败", error);
-
-    process.exit(1);
-  });
+  process.exit(0);
 }
+
+// 正常启动模式
+app.start().catch((error) => {
+  logger.error("应用程序启动失败", error);
+  process.exit(1);
+});
 
 export default Application;
