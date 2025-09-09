@@ -13,6 +13,7 @@
     "start": "node dist/index.js",
     "start:api": "node dist/index.js --api",
     "setup": "node scripts/setup.js",
+    "setup": "node scripts/setup.js",
     "test:scraper": "ts-node scripts/test-scraper.ts",
     "clean": "rimraf dist logs/*.log",
     "pm2:start": "pm2 start ecosystem.config.js",

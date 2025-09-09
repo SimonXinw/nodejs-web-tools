@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -134,8 +135,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .error {
@@ -158,17 +164,17 @@
             .header h1 {
                 font-size: 2rem;
             }
-            
+
             .stats {
                 grid-template-columns: 1fr;
                 padding: 20px;
             }
-            
+
             .chart-container {
                 padding: 20px;
                 height: 400px;
             }
-            
+
             .controls {
                 padding: 15px 20px;
                 justify-content: center;
@@ -176,6 +182,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -221,8 +228,8 @@
 
     <script>
         // Supabase 配置 - 请替换为你的实际配置
-        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        const SUPABASE_URL = 'https://lvsyycnybkwbrvvmshfb.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx2c3l5Y255Ymt3YnJ2dm1zaGZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNTU5NjMsImV4cCI6MjA3MjgzMTk2M30.Ot7-h6nbAhIkUOGoqAv8diUBW6-Llhh8MtA6bJMXbeA';
 
         let supabaseClient;
         let chart;
@@ -331,7 +338,7 @@
                 console.error('加载数据失败:', error);
 
                 showError('加载数据失败: ' + error.message);
-                
+
                 // 恢复图表容器
                 const chartContainer = document.querySelector('.chart-container');
 
@@ -347,7 +354,7 @@
             chartContainer.innerHTML = '<canvas id="goldChart"></canvas>';
 
             const ctx = document.getElementById('goldChart').getContext('2d');
-            
+
             if (chart) {
                 chart.destroy();
             }
@@ -437,7 +444,7 @@
                                 color: 'rgba(0, 0, 0, 0.1)'
                             },
                             ticks: {
-                                callback: function(value) {
+                                callback: function (value) {
                                     return '$' + value.toFixed(2);
                                 }
                             }
@@ -465,13 +472,13 @@
             const lowPrice = Math.min(...prices);
 
             document.getElementById('currentPrice').textContent = '$' + currentPrice.toFixed(2);
-            
+
             const changeElement = document.getElementById('priceChange');
-            const changeText = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + ' (' + 
-                              (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
+            const changeText = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + ' (' +
+                (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%)';
             changeElement.textContent = changeText;
             changeElement.style.color = priceChange >= 0 ? '#28a745' : '#dc3545';
-            
+
             document.getElementById('highPrice').textContent = '$' + highPrice.toFixed(2);
             document.getElementById('lowPrice').textContent = '$' + lowPrice.toFixed(2);
         }
@@ -479,20 +486,20 @@
         // 更新最后更新时间
         function updateLastUpdateTime() {
             const now = new Date();
-            document.getElementById('lastUpdate').textContent = 
+            document.getElementById('lastUpdate').textContent =
                 '最后更新: ' + now.toLocaleString('zh-CN');
         }
 
         // 加载数据
         function loadData(hours) {
             currentTimeRange = hours;
-            
+
             // 更新按钮状态
             document.querySelectorAll('.btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
-            
+
             loadGoldPrices(hours);
         }
 
@@ -502,14 +509,15 @@
         }
 
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (initSupabase()) {
                 loadGoldPrices(24);
-                
+
                 // 设置自动刷新（每5分钟）
                 setInterval(refreshData, 5 * 60 * 1000);
             }
         });
     </script>
 </body>
+
 </html>
