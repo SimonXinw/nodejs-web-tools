@@ -180,7 +180,6 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       if (errorMessages.length > 0) {
         logger.warn("⚠️ 页面可能包含错误信息:", errorMessages);
       }
-      
     } catch (error: any) {
       logger.warn("⚠️ 页面内容分析失败:", error.message);
     }
@@ -277,7 +276,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 
       const saved = await this.saveToDatabase(data);
       if (saved) {
-        logger.info(`金价爬取任务完成: $${data.price}`);
+        logger.info(`金价爬取脚本执行完成！: $${data.price}`);
         return true;
       } else {
         logger.error("保存数据到数据库失败");
