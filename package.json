@@ -8,13 +8,13 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/index.ts",
-    "dev:api": "ts-node src/index.ts --api",
-    "start": "node dist/index.js",
-    "start:api": "node dist/index.js --api",
-    "dev:gold_price": "ts-node src/index.ts --manual --inspect",
+    "dev": "ts-node -r dotenv/config src/index.ts",
+    "dev:gold_price": "ts-node -r dotenv/config src/index.ts",
+    "dev:api": "ts-node -r dotenv/config src/index.ts --api",
+    "start": "node -r dotenv/config dist/index.js",
+    "start:api": "node -r dotenv/config dist/index.js --api",
     "setup": "node scripts/setup.js",
-    "test:scraper": "ts-node scripts/test-scraper.ts",
+    "test:scraper": "ts-node -r dotenv/config scripts/test-scraper.ts",
     "clean": "rimraf dist logs/*.log",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop gold-scraper",
@@ -41,21 +41,21 @@
   "author": "Simon",
   "license": "MIT",
   "dependencies": {
-    "playwright": "^1.40.0",
     "@supabase/supabase-js": "^2.38.0",
-    "node-cron": "^3.0.3",
-    "dotenv": "^16.3.1",
-    "winston": "^3.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "node-cron": "^3.0.3",
+    "playwright": "^1.40.0",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "typescript": "^5.2.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.8.0",
     "@types/node-cron": "^3.0.8",
-    "@types/express": "^4.17.21",
-    "@types/cors": "^2.8.17",
+    "rimraf": "^5.0.5",
     "ts-node": "^10.9.1",
-    "rimraf": "^5.0.5"
+    "typescript": "^5.2.2"
   }
 }

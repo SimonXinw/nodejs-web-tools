@@ -94,40 +94,6 @@
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
-      "name": "🧪 [功能测试] 爬虫系统完整性测试",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/scripts/test-scraper.ts",
-      "runtimeArgs": ["-r", "ts-node/register"],
-      "env": {
-        "NODE_ENV": "development"
-      },
-      "envFile": "${workspaceFolder}/.env",
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
-      "restart": false,
-      "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
-    },
-    {
-      "name": "📊 [系统监控] 运行状态和性能监控",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/scripts/monitor.ts",
-      "runtimeArgs": ["-r", "ts-node/register"],
-      "env": {
-        "NODE_ENV": "development"
-      },
-      "envFile": "${workspaceFolder}/.env",
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
-      "restart": false,
-      "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
-    },
-    {
       "name": "🔧 [命令行调试] main.js启动器调试",
       "type": "node",
       "request": "launch",
