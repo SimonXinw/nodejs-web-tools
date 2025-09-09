@@ -12,7 +12,7 @@
     "dev:api": "ts-node src/index.ts --api",
     "start": "node dist/index.js",
     "start:api": "node dist/index.js --api",
-    "setup": "node scripts/setup.js",
+    "dev:gold_price": "ts-node src/index.ts --manual --inspect",
     "setup": "node scripts/setup.js",
     "test:scraper": "ts-node scripts/test-scraper.ts",
     "clean": "rimraf dist logs/*.log",
