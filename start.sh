@@ -58,20 +58,81 @@ if [ ! -d "node_modules" ]; then
     fi
 fi
 
+
+# 检测操作系统类型
+detect_os() {
+    if [ -f /etc/redhat-release ]; then
+        echo "centos"
+    elif [ -f /etc/debian_version ]; then
+        echo "debian"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "macos"
+    else
+        echo "unknown"
+    fi
+}
+
+# 安装系统依赖（仅限CentOS/RHEL）
+install_centos_deps() {
+    echo "🔧 检测到CentOS/RHEL系统，检查是否需要安装依赖..."
+    
+    if ! command -v google-chrome &> /dev/null && ! command -v chromium &> /dev/null; then
+        echo "⚠️  未检测到系统Chrome浏览器"
+        echo "💡 建议运行以下命令安装依赖（需要root权限）："
+        echo "   chmod +x scripts/install-centos-deps.sh"
+        echo "   sudo ./scripts/install-centos-deps.sh"
+        echo ""
+        read -p "是否现在尝试自动安装？(需要root权限) [y/N]: " auto_install
+        if [[ $auto_install =~ ^[Yy]$ ]]; then
+            if [ "$EUID" -eq 0 ]; then
+                chmod +x scripts/install-centos-deps.sh
+                ./scripts/install-centos-deps.sh
+            else
+                echo "❌ 需要root权限，请手动运行上述命令"
+                return 1
+            fi
+        fi
+    else
+        echo "✅ 检测到系统浏览器，将优先使用系统浏览器"
+    fi
+}
+
 # 自动安装 Playwright 浏览器（chromium）
 install_playwright_chrome() {
+    local os_type=$(detect_os)
+    
+    if [ "$os_type" = "centos" ]; then
+        # CentOS系统特殊处理
+        install_centos_deps
+        if [ $? -ne 0 ]; then
+            echo "⚠️  系统依赖安装失败，但会继续尝试使用Playwright内置浏览器"
+        fi
+    fi
+    
     echo "🎭 检查并安装 Playwright Chromium 浏览器..."
-    npx playwright install chromium
-    if [ $? -ne 0 ]; then
-        echo "❌ Playwright 浏览器安装失败，请检查网络或手动执行: npx playwright install chromium"
-        exit 1
+    
+    # 对于CentOS，先尝试不安装依赖
+    if [ "$os_type" = "centos" ]; then
+        echo "🔧 CentOS系统：下载并使用Playwright内置的Linux版Chromium浏览器"
+        npx playwright install chromium
+        if [ $? -ne 0 ]; then
+            echo "❌ Playwright Chromium安装失败，请检查网络连接"
+            echo "💡 你也可以尝试手动执行: npx playwright install chromium"
+            exit 1
+        else
+            echo "✅ Playwright Chromium安装成功，将使用内置浏览器"
+        fi
+    else
+        npx playwright install chromium
+        if [ $? -ne 0 ]; then
+            echo "❌ Playwright 浏览器安装失败，请检查网络或手动执行: npx playwright install chromium"
+            exit 1
+        fi
     fi
 }
 
 # 检查 Playwright 是否已安装 chromium
-if [ ! -d "$(npx playwright install --with-deps --dry-run 2>/dev/null | grep chromium | awk '{print $NF}')" ]; then
-    install_playwright_chrome
-fi
+install_playwright_chrome
 
 # 检查是否存在 .env 文件
 if [ ! -f ".env" ]; then
