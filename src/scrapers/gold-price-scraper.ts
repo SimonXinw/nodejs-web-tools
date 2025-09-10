@@ -86,60 +86,29 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
     // 多种选择器策略
     const selectorStrategies = [
       {
-        name: "原始选择器1",
+        name: "大字选择器",
         selector:
-          "#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_up",
-      },
-      {
-        name: "原始选择器2",
-        selector:
-          "#app .layout_sm_main .layout_m_ms_s .sider_brief tbody tr td .price_down",
-      },
-      {
-        name: "通用价格选择器1",
-        selector: "[class*='price_up'], [class*='price_down']",
-      },
-      {
-        name: "通用价格选择器2",
-        selector: ".price_up, .price_down",
-      },
-      {
-        name: "数字模式匹配",
-        selector: "td:has-text('$'), span:has-text('$'), div:has-text('$')",
+          "#app .zsquote3l .quote3l_l .quote_quotenums .zxj > span > span",
       },
     ];
 
     for (const strategy of selectorStrategies) {
       try {
-        logger.info(`🔍 尝试策略: ${strategy.name}`);
+        logger.info(`🔍 尝试选择器: ${strategy.name}`);
 
         const element = await page.$(strategy.selector);
-        if (element) {
-          const text = await element.textContent();
-          if (text && text.trim()) {
-            logger.info(`✅ 策略 "${strategy.name}" 成功，找到文本: ${text}`);
-            return { text: text.trim(), selector: strategy.selector };
-          }
-        }
 
-        // 如果单个元素没找到，尝试找所有匹配的元素
-        const elements = await page.$$(strategy.selector);
-        for (let i = 0; i < elements.length; i++) {
-          const text = await elements[i].textContent();
-          if (text && text.trim() && /[\d,.]+/.test(text)) {
-            logger.info(
-              `✅ 策略 "${strategy.name}" (第${
-                i + 1
-              }个元素) 成功，找到文本: ${text}`
-            );
-            return {
-              text: text.trim(),
-              selector: `${strategy.selector}:nth-of-type(${i + 1})`,
-            };
-          }
-        }
+        if (!element) continue;
+
+        const text = await element.textContent();
+
+        if (!(text && text.trim())) continue;
+
+        logger.info(`✅ 选择器 "${strategy.name}" 成功，找到文本: ${text}`);
+
+        return { text: text.trim(), selector: strategy.selector };
       } catch (error: any) {
-        logger.warn(`⚠️ 策略 "${strategy.name}" 失败:`, error.message);
+        logger.warn(`⚠️ 选择器 "${strategy.name}" 失败:`, error.message);
       }
     }
 
@@ -341,7 +310,7 @@ if (require.main === module) {
 
         // 显示最新的几条数据
         console.log("\n📊 最新爬取的数据：");
-        const recentData = await scraper.getHistoricalData(3);
+        const recentData = await scraper.getHistoricalData(100);
         console.table(recentData);
       } else {
         console.log("\n❌ 调试完成，但爬取失败！");

@@ -9,9 +9,10 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node -r dotenv/config src/index.ts",
-    "dev:gold_price": "ts-node -r dotenv/config src/scrapers/gold-price-scraper.ts",
+    "dev:gold_price": "ts-node -r dotenv/config src/scrapers/gold-price-scraper.ts --inspect --manual",
     "dev:api": "ts-node -r dotenv/config src/index.ts --api",
     "start": "node -r dotenv/config dist/index.js",
+    "start:gold_price": "node -r dotenv/config dist/scrapers/gold-price-scraper.js",
     "start:api": "node -r dotenv/config dist/index.js --api",
     "setup": "node scripts/setup.js",
     "clean": "rimraf dist logs/*.log",
