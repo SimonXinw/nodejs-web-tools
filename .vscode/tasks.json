@@ -54,18 +54,6 @@
       }
     },
     {
-      "label": "npm: test:scraper",
-      "type": "npm",
-      "script": "test:scraper",
-      "group": "test",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "new"
-      }
-    },
-    {
       "label": "npm: setup",
       "type": "npm",
       "script": "setup",

@@ -118,10 +118,6 @@ case $choice in
         npm run dev -- --manual
         ;;
     4)
-        echo "🧪 测试爬虫功能..."
-        npm run test:scraper
-        ;;
-    5)
         echo "👋 再见!"
         exit 0
         ;;

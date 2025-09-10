@@ -114,8 +114,6 @@ npm run dev:api
 # 手动执行一次爬取
 npm run dev -- --manual
 
-# 测试爬虫功能
-npm run test:scraper
 
 # 生产模式
 npm run build
@@ -390,8 +388,6 @@ class CustomScraper extends BaseScraper<CustomData> {
 # 1. 测试网络连接
 curl https://quote.eastmoney.com/globalfuture/GC00Y.html
 
-# 2. 运行诊断测试
-npm run test:scraper
 
 # 3. 查看详细日志
 tail -f logs/error.log
