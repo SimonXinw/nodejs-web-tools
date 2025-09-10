@@ -74,26 +74,70 @@ detect_os() {
 
 # 安装系统依赖（仅限CentOS/RHEL）
 install_centos_deps() {
-    echo "🔧 检测到CentOS/RHEL系统，检查是否需要安装依赖..."
+    echo "🔧 检测到CentOS/RHEL系统，正在安装Playwright浏览器运行所需的系统依赖..."
     
-    if ! command -v google-chrome &> /dev/null && ! command -v chromium &> /dev/null; then
-        echo "⚠️  未检测到系统Chrome浏览器"
-        echo "💡 建议运行以下命令安装依赖（需要root权限）："
-        echo "   chmod +x scripts/install-centos-deps.sh"
-        echo "   sudo ./scripts/install-centos-deps.sh"
-        echo ""
-        read -p "是否现在尝试自动安装？(需要root权限) [y/N]: " auto_install
-        if [[ $auto_install =~ ^[Yy]$ ]]; then
-            if [ "$EUID" -eq 0 ]; then
-                chmod +x scripts/install-centos-deps.sh
-                ./scripts/install-centos-deps.sh
-            else
-                echo "❌ 需要root权限，请手动运行上述命令"
-                return 1
-            fi
-        fi
+    # 检查是否有root权限
+    if [ "$EUID" -ne 0 ]; then
+        echo "❌ 需要root权限来安装系统依赖"
+        echo "💡 请使用 sudo 运行此脚本，或手动安装以下依赖："
+        echo "   yum install -y libX11 libXcomposite libXdamage libXext libXfixes libXrandr libgbm libcairo-gobject alsa-lib atk at-spi2-atk gtk3"
+        return 1
+    fi
+    
+    echo "📦 正在安装CentOS系统依赖包..."
+    
+    # 更新yum源（如果需要）
+    yum makecache fast
+    
+    # 安装基础依赖组
+    yum groupinstall -y "Development Tools"
+    
+    # 安装Playwright浏览器运行所需的系统库
+    yum install -y \
+        libX11 \
+        libX11-devel \
+        libXcomposite \
+        libXcomposite-devel \
+        libXdamage \
+        libXdamage-devel \
+        libXext \
+        libXext-devel \
+        libXfixes \
+        libXfixes-devel \
+        libXrandr \
+        libXrandr-devel \
+        libgbm \
+        libcairo-gobject \
+        libcairo-gobject-devel \
+        alsa-lib \
+        alsa-lib-devel \
+        atk \
+        atk-devel \
+        at-spi2-atk \
+        at-spi2-atk-devel \
+        gtk3 \
+        gtk3-devel \
+        libxcb \
+        libxcb-devel \
+        libatspi \
+        pango \
+        pango-devel \
+        cups-libs \
+        libdrm \
+        libXss \
+        libgconf-2.so.4 \
+        libXtst \
+        nss \
+        nspr
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ CentOS系统依赖安装成功"
+        return 0
     else
-        echo "✅ 检测到系统浏览器，将优先使用系统浏览器"
+        echo "❌ 部分依赖安装失败，但可能不影响运行"
+        echo "💡 如果后续运行出现问题，请手动执行："
+        echo "   npx playwright install-deps"
+        return 1
     fi
 }
 
@@ -103,9 +147,15 @@ install_playwright_chrome() {
     
     if [ "$os_type" = "centos" ]; then
         # CentOS系统特殊处理
-        install_centos_deps
-        if [ $? -ne 0 ]; then
-            echo "⚠️  系统依赖安装失败，但会继续尝试使用Playwright内置浏览器"
+        echo "🔧 CentOS系统检测：需要安装系统依赖才能运行Playwright浏览器"
+        read -p "是否现在安装系统依赖？(需要root权限) [Y/n]: " install_deps
+        if [[ $install_deps =~ ^[Nn]$ ]]; then
+            echo "⚠️  跳过依赖安装，可能会导致浏览器启动失败"
+        else
+            install_centos_deps
+            if [ $? -ne 0 ]; then
+                echo "⚠️  系统依赖安装失败，但会继续尝试使用Playwright内置浏览器"
+            fi
         fi
     fi
     
@@ -179,6 +229,10 @@ case $choice in
         npm run dev -- --manual
         ;;
     4)
+        echo "🧪 测试爬虫功能..."
+        npm run dev:gold_price
+        ;;
+    5)
         echo "👋 再见!"
         exit 0
         ;;
