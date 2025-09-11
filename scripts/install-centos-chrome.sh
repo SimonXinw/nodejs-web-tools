@@ -177,6 +177,7 @@ install_dependencies() {
 }
 
 # 下载Chrome RPM包
+# wget https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm -O /tmp/chrome.rpm
 download_chrome() {
     log_info "下载 Google Chrome RPM 包..."
     
@@ -206,6 +207,8 @@ download_chrome() {
 }
 
 # 安装Chrome (优先使用 CentOS 7 命令)
+# sudo yum localinstall /tmp/chrome.rpm -y
+# yum --showduplicates list google-chrome-stable
 install_chrome() {
     log_info "安装 Google Chrome..."
     
@@ -263,10 +266,12 @@ install_chrome() {
 }
 
 # 验证安装
+# /srv/software/chromedriver-linux64/chromedriver
 verify_installation() {
     log_info "验证 Chrome 安装..."
     
     if command -v google-chrome &> /dev/null; then
+        #google-chrome --version
         CHROME_VERSION=$(google-chrome --version 2>/dev/null || echo "版本获取失败")
         log_success "Chrome安装验证成功"
         log_success "版本信息: $CHROME_VERSION"
