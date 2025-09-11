@@ -16,14 +16,16 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         ENABLE_API: 'true',
-        API_PORT: 3000
+        API_PORT: 3667,
+        SCRAPER_HEADLESS: 'true'
       },
       
       // 开发环境
       env_development: {
         NODE_ENV: 'development',
         ENABLE_API: 'true',
-        API_PORT: 3000
+        API_PORT: 3667,
+        SCRAPER_HEADLESS: 'true'
       },
       
       // 日志配置
@@ -47,9 +49,7 @@ module.exports = {
       health_check_grace_period: 30000,
       
       // 其他配置
-      kill_timeout: 5000,
-      wait_ready: true,
-      listen_timeout: 10000
+      kill_timeout: 5000
     }
   ]
 }; 

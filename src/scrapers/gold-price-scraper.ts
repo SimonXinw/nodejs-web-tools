@@ -16,7 +16,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   constructor(config: Partial<ScraperConfig> = {}) {
     // 增强默认配置，提供更好的调试和反反爬能力
     const enhancedConfig = {
-      headless: config.headless ?? false, // 默认启用有头浏览器便于调试
+      headless: config.headless ?? true, // 默认启用无头浏览器模式，避免弹窗
       timeout: config.timeout ?? 60000, // 增加超时时间到60秒
       retryCount: config.retryCount ?? 2, // 减少重试次数便于调试
       userAgent:
