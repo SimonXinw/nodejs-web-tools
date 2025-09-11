@@ -2,25 +2,34 @@ version: '3.8'
 
 services:
   gold-scraper:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: production
     container_name: gold-scraper
     restart: unless-stopped
     
+    # 环境变量
     environment:
       - NODE_ENV=production
       - ENABLE_API=true
       - API_PORT=3000
     
+    # 环境变量文件
     env_file:
       - .env
     
+    # 端口映射
     ports:
       - "3000:3000"
     
+    # 数据卷挂载
     volumes:
       - ./logs:/app/logs
       - ./data:/app/data
+      - /etc/localtime:/etc/localtime:ro  # 同步主机时间
     
+    # 健康检查
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -28,9 +37,94 @@ services:
       retries: 3
       start_period: 40s
     
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    
+    # 网络配置
     networks:
       - gold-scraper-network
+    
+    # 依赖配置
+    depends_on:
+      - redis
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
 
+  # Redis缓存服务（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: gold-scraper-redis
+    restart: unless-stopped
+    
+    # 端口映射（仅内部访问）
+    expose:
+      - "6379"
+    
+    # 数据卷
+    volumes:
+      - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    
+    # 启动命令
+    command: redis-server /usr/local/etc/redis/redis.conf
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    
+    # 网络配置
+    networks:
+      - gold-scraper-network
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "2"
+
+# 网络配置
 networks:
   gold-scraper-network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷配置
+volumes:
+  redis-data:
+    driver: local 
