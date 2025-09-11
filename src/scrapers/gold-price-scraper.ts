@@ -198,20 +198,24 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       );
       return goldPriceData;
     } catch (error: any) {
-      logger.error("❌ 金价爬取失败", error);
-
-      // 保存错误截图用于调试
+      logger.error("金价爬取过程中发生错误:", error);
+      // 在出错时也截图用于调试
       try {
         const errorScreenshotPath = `debug-error-${Date.now()}.png`;
         await page.screenshot({ path: errorScreenshotPath, fullPage: true });
-        logger.info(`📸 已保存错误截图: ${errorScreenshotPath}`);
-      } catch (screenshotError: any) {
-        logger.warn("⚠️ 保存错误截图失败:", screenshotError.message);
+        logger.info(`已保存错误截图: ${errorScreenshotPath}`);
+      } catch (screenshotError) {
+        logger.warn("保存错误截图失败:", screenshotError);
       }
-
       throw error;
     } finally {
-      await page.close();
+      // 确保页面被正确关闭
+      try {
+        await page.close();
+        logger.debug("页面已关闭");
+      } catch (closeError) {
+        logger.warn("关闭页面时出现错误:", closeError);
+      }
     }
   }
 

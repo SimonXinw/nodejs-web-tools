@@ -83,29 +83,53 @@ export abstract class BaseScraper<T extends ScrapedData> {
    * 创建新页面
    */
   protected async createPage(): Promise<Page> {
-    if (!this.context) {
+    // 检查浏览器上下文是否有效
+    if (!this.context || this.browser?.isConnected() === false) {
+      logger.info("浏览器上下文无效，重新初始化...");
+      await this.cleanup();
       await this.initBrowser();
     }
 
-    const page = await this.context!.newPage();
+    try {
+      const page = await this.context!.newPage();
 
-    // 设置页面超时
-    page.setDefaultTimeout(this.config.timeout);
+      // 设置页面超时
+      page.setDefaultTimeout(this.config.timeout);
+      page.setDefaultNavigationTimeout(this.config.timeout);
 
-    page.setDefaultNavigationTimeout(this.config.timeout);
+      // 拦截不必要的资源以提高速度
+      await page.route("**/*", (route) => {
+        const resourceType = route.request().resourceType();
 
-    // 拦截不必要的资源以提高速度
-    await page.route("**/*", (route) => {
-      const resourceType = route.request().resourceType();
+        if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
+          route.abort();
+        } else {
+          route.continue();
+        }
+      });
 
-      if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
-        route.abort();
-      } else {
-        route.continue();
-      }
-    });
-
-    return page;
+      return page;
+    } catch (error) {
+      logger.error("创建页面失败，尝试重新初始化浏览器", error);
+      await this.cleanup();
+      await this.initBrowser();
+      
+      // 重试一次
+      const page = await this.context!.newPage();
+      page.setDefaultTimeout(this.config.timeout);
+      page.setDefaultNavigationTimeout(this.config.timeout);
+      
+      await page.route("**/*", (route) => {
+        const resourceType = route.request().resourceType();
+        if (["image", "stylesheet", "font", "media"].includes(resourceType)) {
+          route.abort();
+        } else {
+          route.continue();
+        }
+      });
+      
+      return page;
+    }
   }
 
   /**
