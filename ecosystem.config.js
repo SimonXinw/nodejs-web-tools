@@ -2,11 +2,15 @@ module.exports = {
   apps: [
     {
       name: 'gold-scraper',
-      script: './dist/index.js',
+      script: 'node',
+      args: '-r dotenv/config ./dist/index.js',
       
       // 基本配置
       instances: 1,
       exec_mode: 'fork',
+      
+      // 环境变量文件
+      env_file: './.env',
       
       // 环境变量
       env: {
