@@ -59,17 +59,11 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
         "Upgrade-Insecure-Requests": "1",
       });
 
-      // 随机延迟，模拟人类行为
-      await page.waitForTimeout(Math.random() * 2000 + 1000);
-
       // 访问页面，使用多种等待策略
       await page.goto(url, {
         waitUntil: "domcontentloaded", // 先等DOM加载完成
         timeout: this.config.timeout,
       });
-
-      // 额外等待，确保页面完全加载
-      await page.waitForTimeout(3000);
 
       logger.info(`✅ 页面访问成功: ${url}`);
     } catch (error: any) {
@@ -97,7 +91,10 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       try {
         logger.info(`🔍 尝试选择器: ${strategy.name}`);
 
-        const element = await page.$(strategy.selector);
+        const element = await page.waitForSelector(strategy.selector, {
+          timeout: 5000,
+          state: "visible",
+        });
 
         if (!element) continue;
 

@@ -16,7 +16,7 @@
     "start:api": "node -r dotenv/config dist/index.js --api",
     "setup": "node scripts/setup.js",
     "clean": "rimraf dist logs/*.log",
-    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:start": "npm run build && pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop gold-scraper",
     "pm2:restart": "pm2 restart gold-scraper",
     "pm2:delete": "pm2 delete gold-scraper",
