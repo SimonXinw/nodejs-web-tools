@@ -9,15 +9,19 @@
       "args": [],
       "runtimeArgs": ["-r", "ts-node/register"],
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
       },
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
       "restart": true,
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
     },
     {
       "name": "🌐 [API服务] 启动REST接口服务器",
@@ -28,15 +32,19 @@
       "runtimeArgs": ["-r", "ts-node/register"],
       "env": {
         "NODE_ENV": "development",
-        "ENABLE_API": "true"
+        "ENABLE_API": "true",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
       },
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
       "restart": true,
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
     },
     {
       "name": "🎯 [手动入口测试] 单次执行金价数据抓取",
@@ -44,34 +52,42 @@
       "request": "launch",
       "program": "${workspaceFolder}/src/index.ts",
       "args": ["--manual"],
-      "runtimeArgs": ["-r", "ts-node/register"],
+      "runtimeArgs": ["-r", "ts-node/register", "--inspect-brk=0"],
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
       },
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
       "restart": false,
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
     },
     {
-      "name": "🕷️ [单次调试] 金价爬虫逻辑调试",
+      "name": "🕷️ [单次调试] 直接执行金价爬虫逻辑",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/src/scrapers/gold-price-scraper.ts",
       "runtimeArgs": ["-r", "ts-node/register"],
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
       },
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
       "restart": false,
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
     },
     {
       "name": "🐛 [有头调试] 金价爬虫可视化调试模式",
@@ -83,15 +99,22 @@
         "NODE_ENV": "development",
         "SCRAPER_HEADLESS": "false",
         "SCRAPER_TIMEOUT": "90000",
-        "LOG_LEVEL": "debug"
+        "LOG_LEVEL": "debug",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
       },
       "envFile": "${workspaceFolder}/.env",
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
       "restart": false,
       "sourceMaps": true,
-      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
     },
     {
       "name": "🏗️ [生产环境] 编译后程序调试",
@@ -118,7 +141,7 @@
       "internalConsoleOptions": "neverOpen",
       "skipFiles": ["<node_internals>/**"],
       "restart": false
-    },
+    }
   ],
   "compounds": [
     {

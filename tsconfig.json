@@ -12,8 +12,20 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "inlineSources": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "ts-node": {
+    "esm": false,
+    "transpileOnly": false,
+    "compilerOptions": {
+      "module": "commonjs",
+      "target": "ES2020",
+      "sourceMap": true,
+      "inlineSourceMap": false
+    }
+  }
 }
