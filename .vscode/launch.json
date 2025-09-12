@@ -39,7 +39,7 @@
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
-      "name": "🎯 [手动爬取] 单次执行金价数据抓取",
+      "name": "🎯 [手动入口测试] 单次执行金价数据抓取",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/src/index.ts",
@@ -57,7 +57,7 @@
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
-      "name": "🕷️ [爬虫调试] 金价爬虫核心逻辑调试",
+      "name": "🕷️ [单次调试] 金价爬虫逻辑调试",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/src/scrapers/gold-price-scraper.ts",
@@ -94,21 +94,6 @@
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
     },
     {
-      "name": "🔧 [命令行调试] main.js启动器调试",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/main.js",
-      "args": ["--dev"],
-      "env": {
-        "NODE_ENV": "development"
-      },
-      "envFile": "${workspaceFolder}/.env",
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": ["<node_internals>/**"],
-      "restart": true
-    },
-    {
       "name": "🏗️ [生产环境] 编译后程序调试",
       "type": "node",
       "request": "launch",
@@ -122,7 +107,18 @@
       "skipFiles": ["<node_internals>/**"],
       "restart": true,
       "preLaunchTask": "npm: build"
-    }
+    },
+    {
+      "name": "🧪 [测试] 调试 test-chrome.js",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/test-chrome.js",
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": false
+    },
   ],
   "compounds": [
     {

@@ -271,7 +271,7 @@ verify_installation() {
     log_info "验证 Chrome 安装..."
     
     if command -v google-chrome &> /dev/null; then
-        #google-chrome --version
+        #google-chrome --version 
         CHROME_VERSION=$(google-chrome --version 2>/dev/null || echo "版本获取失败")
         log_success "Chrome安装验证成功"
         log_success "版本信息: $CHROME_VERSION"

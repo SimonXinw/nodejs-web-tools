@@ -8,6 +8,8 @@ import { logger } from "./utils/logger";
 
 import { startApiServer } from "./api/server";
 
+import fs from "fs";
+
 // 加载环境变量
 dotenv.config();
 
@@ -24,6 +26,8 @@ class Application {
       timeout: parseInt(process.env.SCRAPER_TIMEOUT || "30000"),
 
       retryCount: parseInt(process.env.SCRAPER_RETRY_COUNT || "3"),
+
+      executablePath: process.env.CHROME_EXECUTABLE_PATH,
     });
   }
 

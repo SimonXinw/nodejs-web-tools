@@ -23,7 +23,7 @@
     "pm2:logs": "pm2 logs gold-scraper",
     "pm2:monit": "pm2 monit",
     "docker:build": "docker build -t gold-scraper .",
-    "docker:run": "docker run -d --name gold-scraper --env-file .env -p 3000:3000 -v $(pwd)/logs:/app/logs gold-scraper",
+    "docker:run": "docker run -d --name gold-scraper --env-file .env -p 3667:3667 -v $(pwd)/logs:/app/logs gold-scraper",
     "docker:stop": "docker stop gold-scraper",
     "docker:remove": "docker rm gold-scraper",
     "docker:logs": "docker logs -f gold-scraper",

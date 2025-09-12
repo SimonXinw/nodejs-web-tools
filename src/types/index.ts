@@ -17,6 +17,8 @@ export interface ScraperConfig {
 
   };
 
+  // 添加系统浏览器配置
+  executablePath?: string | undefined; // Chrome 可执行文件路径
 }
 
 // 爬虫结果接口
