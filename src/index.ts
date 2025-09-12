@@ -20,14 +20,22 @@ class Application {
   private goldScraper: GoldPriceScraper;
 
   constructor() {
+    const headless = process.env.SCRAPER_HEADLESS === "true";
+
+    const timeout = parseInt(process.env.SCRAPER_TIMEOUT || "30000");
+    
+    const retryCount = parseInt(process.env.SCRAPER_RETRY_COUNT || "3");
+    
+    const executablePath = process.env.CHROME_EXECUTABLE_PATH;
+    
+    const useSystemBrowser = process.env.SCRAPER_USE_SYSTEM_BROWSER === "true";
+
     this.goldScraper = new GoldPriceScraper({
-      headless: process.env.SCRAPER_HEADLESS === "true",
-
-      timeout: parseInt(process.env.SCRAPER_TIMEOUT || "30000"),
-
-      retryCount: parseInt(process.env.SCRAPER_RETRY_COUNT || "3"),
-
-      executablePath: process.env.CHROME_EXECUTABLE_PATH,
+      headless,
+      timeout,
+      retryCount,
+      executablePath,
+      useSystemBrowser,
     });
   }
 

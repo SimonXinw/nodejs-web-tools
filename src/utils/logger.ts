@@ -28,8 +28,8 @@ class Logger {
 
         winston.format.errors({ stack: true }),
 
-        winston.format.printf(({ created_at, level, message, stack }) => {
-          return `${created_at} [${level.toUpperCase()}]: ${stack || message}`;
+        winston.format.printf(({ timestamp, level, message, stack }) => {
+          return `${timestamp} [${level.toUpperCase()}]: ${stack || message}`;
         })
       ),
 
@@ -57,9 +57,13 @@ class Logger {
         // 控制台输出
         new winston.transports.Console({
           format: winston.format.combine(
+            winston.format.timestamp({
+              format: "YYYY-MM-DD HH:mm:ss",
+            }),
             winston.format.colorize(),
-
-            winston.format.simple()
+            winston.format.printf(({ timestamp, level, message }) => {
+              return `${timestamp} [${level}]: ${message}`;
+            })
           ),
         }),
       ],

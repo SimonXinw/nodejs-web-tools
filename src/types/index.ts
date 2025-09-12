@@ -1,6 +1,5 @@
 ﻿// 爬虫配置接口
 export interface ScraperConfig {
-
   headless?: boolean;
 
   timeout?: number;
@@ -10,40 +9,35 @@ export interface ScraperConfig {
   userAgent?: string;
 
   viewport?: {
-
     width: number;
 
     height: number;
-
   };
 
   // 添加系统浏览器配置
   executablePath?: string | undefined; // Chrome 可执行文件路径
+
+  useSystemBrowser?: boolean; // Chrome 可执行文件路径
 }
 
 // 爬虫结果接口
 export interface ScrapedData {
-
   price: any;
 
   source: string;
-
 }
 
 // 金价数据接口
 export interface GoldPriceData extends ScrapedData {
-
   currency: string; // 货币单位
 
   created_at: string; // 创建时间
 
   time_period: string; // 时间周期
-
 }
 
 // 数据库记录接口 - 与 gold_price 表结构保持一致
 export interface DatabaseRecord {
-
   id?: number;
 
   price: number;
@@ -55,16 +49,13 @@ export interface DatabaseRecord {
   currency?: string;
 
   time_period?: string;
-
 }
 
 // 调度器配置接口
 export interface SchedulerConfig {
-
   cronExpression: string;
 
   timezone?: string;
 
   immediate?: boolean; // 是否立即执行一次
-
 }

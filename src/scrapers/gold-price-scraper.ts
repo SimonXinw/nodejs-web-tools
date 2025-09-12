@@ -10,6 +10,7 @@ import { logger } from "../utils/logger";
  */
 export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   private database: SupabaseDatabase;
+
   private readonly targetUrl =
     "https://quote.eastmoney.com/globalfuture/GC00Y.html";
 
@@ -17,7 +18,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
     // 增强默认配置，提供更好的调试和反反爬能力
     const enhancedConfig = {
       headless: config.headless ?? true, // 默认启用无头浏览器模式，避免弹窗
-      timeout: config.timeout ?? 60000, // 增加超时时间到60秒
+      timeout: config.timeout ?? 30000, // 增加超时时间到60秒
       retryCount: config.retryCount ?? 2, // 减少重试次数便于调试
       userAgent:
         config.userAgent ??
@@ -86,7 +87,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
     // 多种选择器策略
     const selectorStrategies = [
       {
-        name: "大字选择器",
+        name: "页面中心巨大价格选择器",
         selector:
           "#app .zsquote3l .quote3l_l .quote_quotenums .zxj > span > span",
       },

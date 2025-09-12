@@ -21,20 +21,26 @@ export abstract class BaseScraper<T extends ScrapedData> {
   constructor(config: Partial<ScraperConfig> = {}) {
     // 根据平台自动选择默认的 Chrome 路径
     let defaultExecutablePath = "";
-    if (process.platform === "win32") {
-      const winPaths = [
-        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-        "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-      ];
-      defaultExecutablePath = winPaths.find((p) => fs.existsSync(p)) || "";
-    } else {
-      const linuxPaths = [
-        "/usr/bin/google-chrome",
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/chromium",
-        "/usr/bin/chromium-browser",
-      ];
-      defaultExecutablePath = linuxPaths.find((p) => fs.existsSync(p)) || "/usr/bin/google-chrome";
+    
+    const useSystemBrowser = config.useSystemBrowser ?? false;
+
+    if (useSystemBrowser) {
+      if (process.platform === "win32") {
+        const winPaths = [
+          "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+          "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        ];
+        defaultExecutablePath = winPaths.find((p) => fs.existsSync(p)) || "";
+      } else {
+        const linuxPaths = [
+          "/usr/bin/google-chrome",
+          "/usr/bin/google-chrome-stable",
+          "/usr/bin/chromium",
+          "/usr/bin/chromium-browser",
+        ];
+        defaultExecutablePath =
+          linuxPaths.find((p) => fs.existsSync(p)) || "/usr/bin/google-chrome";
+      }
     }
 
     this.config = {
@@ -45,8 +51,41 @@ export abstract class BaseScraper<T extends ScrapedData> {
         config.userAgent ??
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       viewport: config.viewport ?? { width: 1920, height: 1080 },
-      executablePath: config.executablePath ?? defaultExecutablePath,
+      executablePath: useSystemBrowser
+        ? config.executablePath ?? defaultExecutablePath
+        : "",
+      useSystemBrowser,
     };
+  }
+
+  /**
+   * 获取浏览器启动选项
+   */
+  protected getLaunchOptions(): any {
+    const launchOptions: any = {
+      headless: this.config.headless,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+        "--disable-web-security",
+        "--disable-features=VizDisplayCompositor",
+      ],
+    };
+
+    // 只有在配置了可执行路径时才设置
+    if (this.config.executablePath) {
+      launchOptions.executablePath = this.config.executablePath;
+      logger.info(`使用系统 Chrome: ${this.config.executablePath}`);
+    } else {
+      logger.info("使用 Playwright 内置浏览器");
+    }
+
+    return launchOptions;
   }
 
   /**
@@ -54,28 +93,7 @@ export abstract class BaseScraper<T extends ScrapedData> {
    */
   protected async initBrowser(): Promise<void> {
     try {
-      const launchOptions: any = {
-        headless: this.config.headless,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--no-first-run",
-          "--no-zygote",
-          "--disable-gpu",
-          "--disable-web-security",
-          "--disable-features=VizDisplayCompositor",
-        ],
-      };
-
-      // 只有在配置了可执行路径时才设置
-      if (this.config.executablePath) {
-        launchOptions.executablePath = this.config.executablePath;
-        logger.info(`使用系统 Chrome: ${this.config.executablePath}`);
-      } else {
-        logger.info("使用 Playwright 内置浏览器");
-      }
+      const launchOptions = this.getLaunchOptions();
 
       this.browser = await chromium.launch(launchOptions);
 
