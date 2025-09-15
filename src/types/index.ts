@@ -56,6 +56,7 @@ export interface MultiPriceData extends ScrapedData {
   prices: Record<string, PriceData>; // 键为fieldName，值为价格数据
   created_at: string; // 创建时间
   time_period: string; // 时间周期
+  currency?: string; // 货币单位
 }
 
 // 金价数据接口 - 保持向后兼容

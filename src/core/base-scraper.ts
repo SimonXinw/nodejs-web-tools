@@ -199,14 +199,14 @@ export abstract class BaseScraper<T extends ScrapedData> {
 
   /**
    * 导航到指定页面
+   * 只等待DOM加载完成，具体元素的等待交给后续的selector等待逻辑
    */
   protected async navigateToPage(page: Page, url: string): Promise<void> {
     try {
       logger.info(`访问页面: ${url}`);
 
       await page.goto(url, {
-        waitUntil: "networkidle",
-
+        waitUntil: "domcontentloaded", // 只等待DOM加载完成，不等待网络空闲
         timeout: this.config.timeout,
       });
 
@@ -345,6 +345,7 @@ export abstract class BaseScraper<T extends ScrapedData> {
 
           try {
             const priceData = await this.scrapeFromSingleSource(page, source);
+
             prices[source.fieldName] = priceData;
 
             // 如果不是最后一个数据源，则等待一段时间
@@ -380,11 +381,11 @@ export abstract class BaseScraper<T extends ScrapedData> {
       }
 
       const multiPriceData: MultiPriceData = {
-        price: prices, // 为了兼容基类接口
-        source: sources.map((s) => s.url).join(", "),
+        price: prices[0]?.price, // 为了兼容基类接口
+        source: sources.map((s) => s.url)?.join(", "),
         prices,
         created_at: formatTimestamp(),
-        time_period: "1d",
+        time_period: "realtime",
       };
 
       logger.info(

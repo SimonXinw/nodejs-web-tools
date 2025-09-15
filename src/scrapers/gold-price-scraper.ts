@@ -294,8 +294,11 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
     try {
       // 构建多价格数据库记录，确保价格字段为数字类型
       const record: any = {
+        price: data.prices.ny_price.price,
+        currency: data.prices.ny_price.currency,
+        source: data.prices.ny_price.source,
         created_at: data.created_at,
-        time_period: data.time_period || "1d",
+        time_period: data.time_period || "realtime",
       };
 
       // 根据fieldName设置对应的价格字段，确保都是数字类型
@@ -309,6 +312,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       });
 
       logger.info("💾 准备保存多数据源数据:", record);
+
       // 记录实际保存的字段及其类型
       const fieldInfo = Object.keys(record)
         .filter((key) => key.endsWith("_price"))
