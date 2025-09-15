@@ -1,8 +1,20 @@
 import { Browser, BrowserContext, chromium, Page } from "playwright";
 
-import { ScrapedData, ScraperConfig } from "../types";
+import {
+  ScrapedData,
+  ScraperConfig,
+  DataSourceConfig,
+  MultiSourceConfig,
+  PriceData,
+  MultiPriceData,
+} from "../types";
 
-import { randomDelay, withRetry } from "../utils/helpers";
+import {
+  randomDelay,
+  withRetry,
+  parsePrice,
+  formatTimestamp,
+} from "../utils/helpers";
 
 import { logger } from "../utils/logger";
 
@@ -10,6 +22,7 @@ import fs from "fs";
 
 /**
  * 爬虫基类 - 提供通用的爬虫功能
+ * 支持单数据源和多数据源爬取模式
  */
 export abstract class BaseScraper<T extends ScrapedData> {
   protected config: Required<ScraperConfig>;
@@ -18,10 +31,13 @@ export abstract class BaseScraper<T extends ScrapedData> {
 
   protected context: BrowserContext | null = null;
 
+  // 多数据源配置
+  protected multiSourceConfig?: MultiSourceConfig;
+
   constructor(config: Partial<ScraperConfig> = {}) {
     // 根据平台自动选择默认的 Chrome 路径
     let defaultExecutablePath = "";
-    
+
     const useSystemBrowser = config.useSystemBrowser ?? false;
 
     if (useSystemBrowser) {
@@ -56,6 +72,21 @@ export abstract class BaseScraper<T extends ScrapedData> {
         : "",
       useSystemBrowser,
     };
+  }
+
+  /**
+   * 设置多数据源配置
+   * @param multiSourceConfig 多数据源配置
+   */
+  protected setMultiSourceConfig(multiSourceConfig: MultiSourceConfig): void {
+    this.multiSourceConfig = {
+      sequential: true, // 默认按顺序爬取
+      delayBetweenSources: 2000, // 默认延迟2秒
+      ...multiSourceConfig,
+    };
+    logger.info(
+      `已配置多数据源模式，共 ${this.multiSourceConfig.sources.length} 个数据源`
+    );
   }
 
   /**
@@ -244,6 +275,130 @@ export abstract class BaseScraper<T extends ScrapedData> {
   }
 
   /**
+   * 从单个数据源爬取价格数据
+   * @param page 页面对象
+   * @param source 数据源配置
+   * @returns 价格数据
+   */
+  protected async scrapeFromSingleSource(
+    page: Page,
+    source: DataSourceConfig
+  ): Promise<PriceData> {
+    logger.info(`🔍 开始爬取数据源: ${source.name} (${source.url})`);
+
+    try {
+      // 导航到目标页面
+      await this.navigateToPage(page, source.url);
+
+      // 获取价格文本
+      const priceText = await this.getElementText(page, source.selector);
+
+      if (!priceText) {
+        throw new Error(`未能获取到价格文本，选择器: ${source.selector}`);
+      }
+
+      // 解析价格
+      const price = parsePrice(priceText);
+      if (price <= 0) {
+        throw new Error(`解析的价格无效: ${priceText} -> ${price}`);
+      }
+
+      const priceData: PriceData = {
+        price,
+        source: source.url,
+        currency: source.currency || "USD",
+        timestamp: formatTimestamp(),
+      };
+
+      logger.info(
+        `✅ 成功爬取 ${source.name}: $${price} ${priceData.currency}`
+      );
+      return priceData;
+    } catch (error) {
+      logger.error(`❌ 爬取数据源失败: ${source.name}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 多数据源爬取方法
+   * @returns 多价格数据
+   */
+  protected async performMultiSourceScrape(): Promise<MultiPriceData> {
+    if (!this.multiSourceConfig) {
+      throw new Error("未配置多数据源，请先调用 setMultiSourceConfig()");
+    }
+
+    const page = await this.createPage();
+
+    const prices: Record<string, PriceData> = {};
+
+    const sources = this.multiSourceConfig.sources;
+
+    try {
+      logger.info(`🚀 开始多数据源爬取，共 ${sources.length} 个数据源`);
+
+      if (this.multiSourceConfig.sequential) {
+        // 按顺序爬取
+        for (let i = 0; i < sources.length; i++) {
+          const source = sources[i];
+
+          try {
+            const priceData = await this.scrapeFromSingleSource(page, source);
+            prices[source.fieldName] = priceData;
+
+            // 如果不是最后一个数据源，则等待一段时间
+            if (
+              i < sources.length - 1 &&
+              this.multiSourceConfig!.delayBetweenSources
+            ) {
+              logger.info(
+                `⏳ 等待 ${
+                  this.multiSourceConfig!.delayBetweenSources
+                }ms 后继续下一个数据源...`
+              );
+              await new Promise((resolve) =>
+                setTimeout(resolve, this.multiSourceConfig!.delayBetweenSources)
+              );
+            }
+          } catch (error) {
+            logger.warn(
+              `⚠️ 数据源 ${source.name} 爬取失败，继续下一个:`,
+              error
+            );
+            // 可以选择继续或者抛出错误，这里选择继续
+          }
+        }
+      } else {
+        // 并行爬取（暂时不实现，因为需求是按顺序）
+        logger.warn("并行爬取模式暂未实现，将使用顺序模式");
+      }
+
+      // 检查是否至少成功爬取了一个数据源
+      if (Object.keys(prices).length === 0) {
+        throw new Error("所有数据源都爬取失败");
+      }
+
+      const multiPriceData: MultiPriceData = {
+        price: prices, // 为了兼容基类接口
+        source: sources.map((s) => s.url).join(", "),
+        prices,
+        created_at: formatTimestamp(),
+        time_period: "1d",
+      };
+
+      logger.info(
+        `🎉 多数据源爬取完成，成功获取 ${Object.keys(prices).length}/${
+          sources.length
+        } 个价格`
+      );
+      return multiPriceData;
+    } finally {
+      await page.close();
+    }
+  }
+
+  /**
    * 执行爬取并重试
    */
   public async scrape(): Promise<T | null> {
@@ -257,7 +412,23 @@ export abstract class BaseScraper<T extends ScrapedData> {
   }
 
   /**
+   * 执行多数据源爬取并重试
+   */
+  public async scrapeMultiSource(): Promise<MultiPriceData | null> {
+    if (!this.multiSourceConfig) {
+      throw new Error("未配置多数据源，请先调用 setMultiSourceConfig()");
+    }
+
+    return await withRetry(
+      async () => await this.performMultiSourceScrape(),
+      this.config.retryCount,
+      2000
+    );
+  }
+
+  /**
    * 具体的爬取实现 - 由子类实现
+   * 单数据源模式使用此方法
    */
   protected abstract performScrape(): Promise<T>;
 

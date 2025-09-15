@@ -1,16 +1,25 @@
 import { Page } from "playwright";
 import { BaseScraper } from "../core/base-scraper";
 import { SupabaseDatabase } from "../database/supabase-client";
-import { GoldPriceData, ScraperConfig } from "../types";
+import {
+  GoldPriceData,
+  ScraperConfig,
+  MultiGoldPriceData,
+  DataSourceConfig,
+  MultiPriceData,
+} from "../types";
 import { formatTimestamp, parsePrice } from "../utils/helpers";
 import { logger } from "../utils/logger";
 
 /**
- * 金价爬虫类 - 专门爬取 investing.com 的金价数据
+ * 金价爬虫类 - 支持单数据源和多数据源爬取模式
+ * 单数据源：爬取东方财富的金价数据
+ * 多数据源：爬取纽约黄金、XAU现货黄金、沪金价格等多个数据源
  */
 export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   private database: SupabaseDatabase;
 
+  // 单数据源模式的目标URL（保持向后兼容）
   private readonly targetUrl =
     "https://quote.eastmoney.com/globalfuture/GC00Y.html";
 
@@ -29,6 +38,48 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 
     super(enhancedConfig);
     this.database = new SupabaseDatabase("gold_price");
+  }
+
+  /**
+   * 配置多数据源模式
+   * 设置纽约黄金、XAU现货黄金、沪金价格等多个数据源
+   */
+  public setupMultiSourceMode(): void {
+    const multiSourceConfig = {
+      sources: [
+        {
+          name: "纽约黄金",
+          url: "https://quote.eastmoney.com/globalfuture/GC00Y.html",
+          selector:
+            "#app .zsquote3l .quote3l_l .quote_quotenums .zxj > span > span",
+          fieldName: "ny_price",
+          currency: "USD",
+        },
+        {
+          name: "XAU现货黄金",
+          url: "https://quote.eastmoney.com/option/122.XAU.html",
+          selector:
+            "#app .zsquote3l .quote3l_l .quote_quotenums .zxj > span > span",
+          fieldName: "xau_price",
+          currency: "USD",
+        },
+        {
+          name: "沪金价格",
+          url: "https://quote.eastmoney.com/globalfuture/SHAU.html",
+          selector:
+            "#app .zsquote3l .quote3l_l .quote_quotenums .zxj > span > span",
+          fieldName: "sh_price",
+          currency: "CNY",
+        },
+      ] as DataSourceConfig[],
+      sequential: true, // 按顺序爬取
+      delayBetweenSources: 3000, // 数据源之间延迟3秒
+    };
+
+    this.setMultiSourceConfig(multiSourceConfig);
+    logger.info(
+      "🔧 已配置多数据源模式，包含纽约黄金(ny_price)、XAU现货黄金(xau_price)、沪金价格(sh_price)"
+    );
   }
 
   /**
@@ -153,9 +204,8 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   }
 
   /**
-   * 执行具体的金价爬取逻辑 - 增强版
+   * 执行具体的金价爬取逻辑 - 单数据源模式（保持向后兼容）
    */
-  // protected 是 TypeScript/JavaScript 中的访问修饰符，表示该方法只能在当前类及其子类中访问，外部无法直接调用
   protected async performScrape(): Promise<GoldPriceData> {
     const page = await this.createPage();
 
@@ -185,6 +235,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 
       const goldPriceData: GoldPriceData = {
         price: price,
+        ny_price: price,
         created_at: formatTimestamp(),
         source: this.targetUrl,
         currency: "USD",
@@ -218,11 +269,12 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   }
 
   /**
-   * 保存数据到数据库
+   * 保存单数据源数据到数据库（保持向后兼容）
    */
   public async saveToDatabase(data: GoldPriceData): Promise<boolean> {
     const record = {
       price: data.price,
+      ny_price: data.ny_price,
       created_at: data.created_at,
       source: data.source,
       currency: data.currency,
@@ -233,7 +285,47 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   }
 
   /**
-   * 执行完整的爬取和保存流程
+   * 保存多数据源数据到数据库
+   * 将多个价格数据保存为一条记录，包含所有价格字段
+   */
+  public async saveMultiPriceToDatabase(
+    data: MultiPriceData
+  ): Promise<boolean> {
+    try {
+      // 构建多价格数据库记录，确保价格字段为数字类型
+      const record: any = {
+        created_at: data.created_at,
+        time_period: data.time_period || "1d",
+      };
+
+      // 根据fieldName设置对应的价格字段，确保都是数字类型
+      Object.entries(data.prices).forEach(([fieldName, priceData]) => {
+        // 确保价格是数字类型
+        const price =
+          typeof priceData.price === "number"
+            ? priceData.price
+            : parseFloat(String(priceData.price));
+        record[fieldName] = price;
+      });
+
+      logger.info("💾 准备保存多数据源数据:", record);
+      // 记录实际保存的字段及其类型
+      const fieldInfo = Object.keys(record)
+        .filter((key) => key.endsWith("_price"))
+        .map((key) => `${key}=${record[key]}(${typeof record[key]})`)
+        .join(", ");
+
+      logger.info(`📊 价格字段信息: ${fieldInfo}`);
+
+      return await this.database.insertRecord(record);
+    } catch (error) {
+      logger.error("保存多数据源数据失败:", error);
+      return false;
+    }
+  }
+
+  /**
+   * 执行完整的单数据源爬取和保存流程（保持向后兼容）
    */
   public async scrapeAndSave(): Promise<boolean> {
     try {
@@ -260,6 +352,52 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   }
 
   /**
+   * 执行完整的多数据源爬取和保存流程
+   */
+  public async scrapeMultiSourceAndSave(): Promise<boolean> {
+    try {
+      logger.info("🚀 开始执行多数据源金价爬取任务...");
+
+      // 确保已配置多数据源
+      if (!this.multiSourceConfig) {
+        logger.info("未配置多数据源，自动配置默认多数据源...");
+        this.setupMultiSourceMode();
+      }
+
+      const data = await this.scrapeMultiSource();
+
+      if (!data) {
+        logger.error("多数据源爬取失败");
+        return false;
+      }
+
+      const saved = await this.saveMultiPriceToDatabase(data);
+
+      if (saved) {
+        const priceCount = Object.keys(data.prices).length;
+        logger.info(
+          `🎉 多数据源金价爬取完成！成功获取 ${priceCount} 个价格数据`
+        );
+
+        // 打印各个价格
+        Object.entries(data.prices).forEach(([fieldName, priceData]) => {
+          logger.info(
+            `  - ${fieldName}: $${priceData.price} ${priceData.currency}`
+          );
+        });
+
+        return true;
+      } else {
+        logger.error("保存多数据源数据到数据库失败");
+        return false;
+      }
+    } catch (error) {
+      logger.error("多数据源金价爬取任务异常", error);
+      return false;
+    }
+  }
+
+  /**
    * 调试模式 - 启用有头浏览器和详细日志
    */
   static createDebugInstance(): GoldPriceScraper {
@@ -268,6 +406,22 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
       timeout: 90000, // 90秒超时
       retryCount: 1, // 调试时只重试1次
     });
+  }
+
+  /**
+   * 创建多数据源调试实例
+   */
+  static createMultiSourceDebugInstance(): GoldPriceScraper {
+    const scraper = new GoldPriceScraper({
+      headless: false,
+      timeout: 90000,
+      retryCount: 1,
+    });
+
+    // 自动配置多数据源
+    scraper.setupMultiSourceMode();
+
+    return scraper;
   }
 
   /**
@@ -288,7 +442,7 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
    * 获取数据源名称
    */
   public getSourceName(): string {
-    return "eastmoney.com";
+    return this.multiSourceConfig ? "multi-source" : "eastmoney.com";
   }
 }
 
@@ -297,22 +451,34 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 if (require.main === module) {
   async function debugRun() {
     console.log("🐛 启动金价爬虫调试模式...");
-    console.log("💡 浏览器将以有头模式启动，你可以观察整个爬取过程");
+    console.log("💡 选择调试模式:");
+    console.log("1. 单数据源模式（原有功能）");
+    console.log("2. 多数据源模式（新功能）");
     console.log("⏳ 请耐心等待...\n");
 
-    // 创建调试实例
-    const scraper = GoldPriceScraper.createDebugInstance();
+    // 可以通过环境变量或参数选择模式
+    const mode = process.env.SCRAPER_MODE || "single"; // 默认使用单数据源模式
+
+    let scraper: GoldPriceScraper;
+    let success: boolean;
+
+    if (mode === "single") {
+      console.log("🔧 使用单数据源调试模式");
+      scraper = GoldPriceScraper.createDebugInstance();
+      success = await scraper.scrapeAndSave();
+    } else {
+      console.log("🔧 使用多数据源调试模式");
+      scraper = GoldPriceScraper.createMultiSourceDebugInstance();
+      success = await scraper.scrapeMultiSourceAndSave();
+    }
 
     try {
-      // 执行单次爬取
-      const success = await scraper.scrapeAndSave();
-
       if (success) {
         console.log("\n🎉 调试完成！爬取成功！");
 
         // 显示最新的几条数据
         console.log("\n📊 最新爬取的数据：");
-        const recentData = await scraper.getHistoricalData(100);
+        const recentData = await scraper.getHistoricalData(5);
         console.table(recentData);
       } else {
         console.log("\n❌ 调试完成，但爬取失败！");
@@ -330,6 +496,8 @@ if (require.main === module) {
         console.log("- 可能原因4：页面结构发生变化");
         console.log("\n💡 建议：查看保存的调试截图来分析具体问题");
       }
+    } finally {
+      await scraper.cleanup();
     }
 
     console.log("\n🔚 调试会话结束");
