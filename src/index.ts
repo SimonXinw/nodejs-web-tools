@@ -46,6 +46,16 @@ class Application {
     try {
       logger.info("正在初始化金价爬虫应用程序...");
 
+      // 显示运行模式
+      const useMultiSource = process.env.SCRAPER_MODE !== "single";
+      logger.info(`🔧 运行模式: ${useMultiSource ? "多数据源模式" : "单数据源模式"}`);
+      
+      if (useMultiSource) {
+        logger.info("📊 将爬取: 纽约黄金(ny_price)、XAU现货黄金(xau_price)、沪金价格(sh_price)");
+      } else {
+        logger.info("📊 将爬取: 东方财富纽约黄金价格");
+      }
+
       // 测试数据库连接
       const dbConnected = await this.goldScraper.testDatabaseConnection();
 
@@ -72,6 +82,9 @@ class Application {
    */
   private setupScheduledTasks(): void {
     const cronExpression = process.env.GOLD_PRICE_SCHEDULE || "0 * * * *"; // 默认每小时执行一次
+    
+    // 根据环境变量决定使用单数据源还是多数据源模式
+    const useMultiSource = process.env.SCRAPER_MODE !== "single"; // 默认使用多数据源模式
 
     // 添加金价爬取任务
     taskScheduler.addTask(
@@ -86,7 +99,13 @@ class Application {
       },
 
       async () => {
-        await this.goldScraper.scrapeAndSave();
+        if (useMultiSource) {
+          // 确保配置了多数据源
+          this.goldScraper.setupMultiSourceMode();
+          await this.goldScraper.scrapeMultiSourceAndSave();
+        } else {
+          await this.goldScraper.scrapeAndSave();
+        }
       }
     );
 
@@ -155,7 +174,18 @@ class Application {
   async manualScrape(): Promise<void> {
     logger.info("手动执行金价爬取...");
 
-    const success = await this.goldScraper.scrapeAndSave();
+    // 根据环境变量决定使用单数据源还是多数据源模式
+    const useMultiSource = process.env.SCRAPER_MODE !== "single"; // 默认使用多数据源模式
+    
+    let success: boolean;
+    
+    if (useMultiSource) {
+      // 确保配置了多数据源
+      this.goldScraper.setupMultiSourceMode();
+      success = await this.goldScraper.scrapeMultiSourceAndSave();
+    } else {
+      success = await this.goldScraper.scrapeAndSave();
+    }
 
     if (success) {
       logger.info("手动执行脚本执行完毕！");
