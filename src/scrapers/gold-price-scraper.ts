@@ -461,7 +461,7 @@ if (require.main === module) {
     console.log("⏳ 请耐心等待...\n");
 
     // 可以通过环境变量或参数选择模式
-    const mode = process.env.SCRAPER_MODE || "single"; // 默认使用单数据源模式
+    const mode = process.env.SCRAPER_MODE || "multiple"; // 默认使用单数据源模式
 
     let scraper: GoldPriceScraper;
     let success: boolean;
