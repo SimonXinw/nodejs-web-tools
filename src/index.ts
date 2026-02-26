@@ -1,6 +1,6 @@
 import * as dotenv from "dotenv";
 
-import { GoldPriceScraper } from "./scrapers/gold-price-scraper";
+import readline from "readline";
 
 import { taskScheduler } from "./scheduler/task-scheduler";
 
@@ -8,35 +8,48 @@ import { logger } from "./utils/logger";
 
 import { startApiServer } from "./api/server";
 
-import fs from "fs";
+import {
+  scraperRegistry,
+  findScraper,
+  ScraperAdapter,
+} from "./scrapers/registry";
 
-// 加载环境变量
+import { ScraperConfig } from "./types";
+
 dotenv.config();
 
 /**
- * 主程序类
+ * 主程序类 - 通用爬虫应用框架，不与任何具体爬虫耦合
  */
 class Application {
-  private goldScraper: GoldPriceScraper;
+  private scraperAdapter: ScraperAdapter;
 
-  constructor() {
-    const headless = process.env.SCRAPER_HEADLESS === "true";
+  private scraperKey: string;
 
-    const timeout = parseInt(process.env.SCRAPER_TIMEOUT || "30000");
-    
-    const retryCount = parseInt(process.env.SCRAPER_RETRY_COUNT || "3");
-    
-    const executablePath = process.env.CHROME_EXECUTABLE_PATH;
-    
-    const useSystemBrowser = process.env.SCRAPER_USE_SYSTEM_BROWSER === "true";
+  constructor(scraperKey: string) {
+    this.scraperKey = scraperKey;
 
-    this.goldScraper = new GoldPriceScraper({
-      headless,
-      timeout,
-      retryCount,
-      executablePath,
-      useSystemBrowser,
-    });
+    const entry = findScraper(scraperKey);
+
+    if (!entry) {
+      const available = scraperRegistry.map((e) => e.key).join(", ");
+
+      throw new Error(`未找到爬虫 "${scraperKey}"，可用爬虫: ${available}`);
+    }
+
+    const config: Partial<ScraperConfig> = {
+      headless: process.env.SCRAPER_HEADLESS === "true",
+
+      timeout: parseInt(process.env.SCRAPER_TIMEOUT || "30000"),
+
+      retryCount: parseInt(process.env.SCRAPER_RETRY_COUNT || "3"),
+
+      executablePath: process.env.CHROME_EXECUTABLE_PATH,
+
+      useSystemBrowser: process.env.SCRAPER_USE_SYSTEM_BROWSER === "true",
+    };
+
+    this.scraperAdapter = entry.create(config);
   }
 
   /**
@@ -44,29 +57,16 @@ class Application {
    */
   async initialize(): Promise<void> {
     try {
-      logger.info("正在初始化金价爬虫应用程序...");
+      logger.info(`正在初始化爬虫: ${this.scraperKey}...`);
 
-      // 显示运行模式
-      const useMultiSource = process.env.SCRAPER_MODE !== "single";
-      logger.info(`🔧 运行模式: ${useMultiSource ? "多数据源模式" : "单数据源模式"}`);
-      
-      if (useMultiSource) {
-        logger.info("📊 将爬取: 纽约黄金(ny_price)、XAU现货黄金(xau_price)、沪金价格(sh_price)");
-      } else {
-        logger.info("📊 将爬取: 东方财富纽约黄金价格");
-      }
-
-      // 测试数据库连接
-      const dbConnected = await this.goldScraper.testDatabaseConnection();
+      const dbConnected = await this.scraperAdapter.testDatabaseConnection();
 
       if (!dbConnected) {
         throw new Error("数据库连接失败，请检查 Supabase 配置");
       }
 
-      // 设置定时任务
       this.setupScheduledTasks();
 
-      // 设置优雅关闭
       this.setupGracefulShutdown();
 
       logger.info("应用程序初始化完成");
@@ -81,35 +81,25 @@ class Application {
    * 设置定时任务
    */
   private setupScheduledTasks(): void {
-    const cronExpression = process.env.GOLD_PRICE_SCHEDULE || "0 * * * *"; // 默认每小时执行一次
-    
-    // 根据环境变量决定使用单数据源还是多数据源模式
-    const useMultiSource = process.env.SCRAPER_MODE !== "single"; // 默认使用多数据源模式
+    const cronExpression =
+      process.env.GOLD_PRICE_SCHEDULE || "0 * * * *";
 
-    // 添加金价爬取任务
     taskScheduler.addTask(
-      "gold-price-scraper",
+      this.scraperKey,
 
       {
         cronExpression,
 
         timezone: "Asia/Shanghai",
 
-        immediate: true, // 启动时立即执行一次
+        immediate: true,
       },
 
       async () => {
-        if (useMultiSource) {
-          // 确保配置了多数据源
-          this.goldScraper.setupMultiSourceMode();
-          await this.goldScraper.scrapeMultiSourceAndSave();
-        } else {
-          await this.goldScraper.scrapeAndSave();
-        }
+        await this.scraperAdapter.runTask();
       }
     );
 
-    // 启动所有任务
     taskScheduler.startAllTasks();
 
     logger.info("定时任务设置完成");
@@ -122,7 +112,6 @@ class Application {
     const shutdown = (signal: string) => {
       logger.info(`收到 ${signal} 信号，正在优雅关闭应用程序...`);
 
-      // 停止所有定时任务
       taskScheduler.cleanup();
 
       logger.info("应用程序已关闭");
@@ -141,7 +130,6 @@ class Application {
   async start(): Promise<void> {
     await this.initialize();
 
-    // 检查是否启动 API 服务器
     const enableApi =
       process.env.ENABLE_API === "true" || process.argv.includes("--api");
 
@@ -155,37 +143,24 @@ class Application {
       }
     }
 
-    logger.info("金价爬虫应用程序已启动");
+    logger.info(`爬虫应用程序已启动: ${this.scraperKey}`);
 
     logger.info("定时任务状态:", taskScheduler.getAllTasksInfo());
 
-    // 保持程序运行
     setInterval(() => {
-      // 定期输出状态信息
       const tasksInfo = taskScheduler.getAllTasksInfo();
 
       logger.debug("当前任务状态:", tasksInfo);
-    }, 60000); // 每分钟输出一次状态
+    }, 60000);
   }
 
   /**
-   * 手动执行金价爬取
+   * 手动执行爬取
    */
   async manualScrape(): Promise<void> {
-    logger.info("手动执行金价爬取...");
+    logger.info(`手动执行爬取: ${this.scraperKey}...`);
 
-    // 根据环境变量决定使用单数据源还是多数据源模式
-    const useMultiSource = process.env.SCRAPER_MODE !== "single"; // 默认使用多数据源模式
-    
-    let success: boolean;
-    
-    if (useMultiSource) {
-      // 确保配置了多数据源
-      this.goldScraper.setupMultiSourceMode();
-      success = await this.goldScraper.scrapeMultiSourceAndSave();
-    } else {
-      success = await this.goldScraper.scrapeAndSave();
-    }
+    const success = await this.scraperAdapter.runTask();
 
     if (success) {
       logger.info("手动执行脚本执行完毕！");
@@ -198,54 +173,158 @@ class Application {
    * 获取历史数据
    */
   async getHistoricalData(limit: number = 100) {
-    return await this.goldScraper.getHistoricalData(limit);
+    return await this.scraperAdapter.getHistoricalData(limit);
   }
 }
 
-// 更加规范的做法是将主流程包裹在一个 async 函数中，然后立即执行（IIFE），这样可以更好地处理异步流程和异常，避免多次 process.exit(0) 导致的潜在问题。
-(async () => {
-  // 创建应用实例
-  const app = new Application();
+/**
+ * 展示爬虫选择菜单，返回用户选择的爬虫 key
+ */
+const promptScraperSelection = (): Promise<string> => {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
 
-  // 处理命令行参数
+    console.log("\n========== 请选择要启动的爬虫 ==========");
+
+    scraperRegistry.forEach((entry, index) => {
+      console.log(
+        `  ${index + 1}. [${entry.key}]  ${entry.name}`
+      );
+      console.log(`     ${entry.description}`);
+    });
+
+    console.log("==========================================\n");
+
+    rl.question("请输入序号 (默认 1，直接回车): ", (answer) => {
+      rl.close();
+
+      const trimmed = answer.trim();
+
+      if (!trimmed) {
+        resolve(scraperRegistry[0].key);
+
+        return;
+      }
+
+      const index = parseInt(trimmed) - 1;
+
+      if (index >= 0 && index < scraperRegistry.length) {
+        resolve(scraperRegistry[index].key);
+      } else {
+        console.log(`无效输入，使用默认爬虫: ${scraperRegistry[0].key}`);
+
+        resolve(scraperRegistry[0].key);
+      }
+    });
+  });
+};
+
+/**
+ * 从命令行参数中解析爬虫 key
+ * 支持: --scraper <key> 或 -s <key>
+ */
+const parseScraperKey = (args: string[]): string | null => {
+  const longIndex = args.indexOf("--scraper");
+
+  const shortIndex = args.indexOf("-s");
+
+  if (longIndex !== -1 && args[longIndex + 1]) {
+    return args[longIndex + 1];
+  }
+
+  if (shortIndex !== -1 && args[shortIndex + 1]) {
+    return args[shortIndex + 1];
+  }
+
+  return null;
+};
+
+/**
+ * 解析历史数据条数参数
+ */
+const parseHistoryLimit = (args: string[]): number => {
+  const longIndex = args.indexOf("--history");
+
+  const shortIndex = args.indexOf("-h");
+
+  return parseInt(
+    args[longIndex + 1] || args[shortIndex + 1] || "10"
+  );
+};
+
+/**
+ * 确保已知爬虫 key，若未指定则在注册表只有一个时自动选择，否则弹出交互菜单
+ */
+const resolveScraperKey = async (args: string[]): Promise<string> => {
+  const key = parseScraperKey(args);
+
+  if (key) return key;
+
+  if (scraperRegistry.length === 1) return scraperRegistry[0].key;
+
+  return await promptScraperSelection();
+};
+
+(async () => {
   const args = process.argv.slice(2);
 
   // 手动执行模式
   if (args.includes("--manual") || args.includes("-m")) {
+    const scraperKey = await resolveScraperKey(args);
+
+    const app = new Application(scraperKey);
+
     console.log("手动执行模式 >>>>>>>>", process.env);
+
     try {
       await app.manualScrape();
+
       process.exit(0);
     } catch (error) {
       logger.error("手动执行失败", error);
+
       process.exit(1);
     }
-    return; // 理论上不会执行到这里
+
+    return;
   }
 
-  // 查看历史数据
+  // 查看历史数据模式
   if (args.includes("--history") || args.includes("-h")) {
-    const limit = parseInt(
-      args[args.indexOf("--history") + 1] ||
-        args[args.indexOf("-h") + 1] ||
-        "10"
-    );
+    const scraperKey = await resolveScraperKey(args);
+
+    const limit = parseHistoryLimit(args);
+
+    const app = new Application(scraperKey);
+
     try {
       const data = await app.getHistoricalData(limit);
+
       console.log("历史数据:", JSON.stringify(data, null, 2));
+
       process.exit(0);
     } catch (error) {
       logger.error("获取历史数据失败", error);
+
       process.exit(1);
     }
+
     return;
   }
 
   // 正常启动模式
+  const scraperKey = await resolveScraperKey(args);
+
+  const app = new Application(scraperKey);
+
   try {
     await app.start();
   } catch (error) {
     logger.error("应用程序启动失败", error);
+
     process.exit(1);
   }
 })();
