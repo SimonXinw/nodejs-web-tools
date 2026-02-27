@@ -1,5 +1,7 @@
 import { GoldPriceScraper } from "./gold-price-scraper";
 
+import { EFundsDividendScraper } from "./efunds-dividend-scraper";
+
 import { ScraperConfig } from "../types";
 
 /**
@@ -62,20 +64,25 @@ export const scraperRegistry: ScraperRegistryEntry[] = [
     },
   },
 
-  // 在此处添加新爬虫，示例：
-  // {
-  //   key: "stock-price",
-  //   name: "股票价格爬虫",
-  //   description: "爬取 A 股实时价格",
-  //   create(config) {
-  //     const scraper = new StockPriceScraper(config);
-  //     return {
-  //       testDatabaseConnection: () => scraper.testDatabaseConnection(),
-  //       runTask: () => scraper.scrapeAndSave(),
-  //       getHistoricalData: (limit) => scraper.getHistoricalData(limit),
-  //     };
-  //   },
-  // },
+  {
+    key: "efunds-dividend",
+
+    name: "易方达中证红利ETF净值",
+
+    description: "爬取易方达515180单位净值、累计净值、日涨跌幅，存入 yfd_dividend 表",
+
+    create(config) {
+      const scraper = new EFundsDividendScraper(config);
+
+      return {
+        testDatabaseConnection: () => scraper.testDatabaseConnection(),
+
+        runTask: () => scraper.scrapeAndSave(),
+
+        getHistoricalData: (limit) => scraper.getHistoricalData(limit),
+      };
+    },
+  },
 ];
 
 /**

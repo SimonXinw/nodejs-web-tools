@@ -1,14 +1,18 @@
 import { Page } from "playwright";
+
 import { BaseScraper } from "../core/base-scraper";
-import { SupabaseDatabase } from "../database/supabase-client";
+
+import { GoldPriceDatabase, GoldPriceInsert } from "../database/gold-price-database";
+
 import {
   GoldPriceData,
   ScraperConfig,
-  MultiGoldPriceData,
   DataSourceConfig,
   MultiPriceData,
 } from "../types";
+
 import { formatTimestamp, parsePrice } from "../utils/helpers";
+
 import { logger } from "../utils/logger";
 
 /**
@@ -17,7 +21,7 @@ import { logger } from "../utils/logger";
  * 多数据源：爬取纽约黄金、XAU现货黄金、沪金价格等多个数据源
  */
 export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
-  private database: SupabaseDatabase;
+  private database: GoldPriceDatabase;
 
   // 单数据源模式的目标URL（保持向后兼容）
   private readonly targetUrl =
@@ -37,7 +41,8 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
     };
 
     super(enhancedConfig);
-    this.database = new SupabaseDatabase("gold_price");
+
+    this.database = new GoldPriceDatabase();
   }
 
   /**
@@ -269,10 +274,10 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
   }
 
   /**
-   * 保存单数据源数据到数据库（保持向后兼容）
+   * 保存单数据源数据到数据库
    */
   public async saveToDatabase(data: GoldPriceData): Promise<boolean> {
-    const record = {
+    const record: GoldPriceInsert = {
       price: data.price,
       ny_price: data.ny_price,
       created_at: data.created_at,
@@ -286,44 +291,38 @@ export class GoldPriceScraper extends BaseScraper<GoldPriceData> {
 
   /**
    * 保存多数据源数据到数据库
-   * 将多个价格数据保存为一条记录，包含所有价格字段
+   * 将纽约黄金、XAU、沪金价格合并为一条记录存储
    */
   public async saveMultiPriceToDatabase(
     data: MultiPriceData
   ): Promise<boolean> {
     try {
-      // 构建多价格数据库记录，确保价格字段为数字类型
-      const record: any = {
-        price: data.prices.ny_price.price,
-        currency: data.prices.ny_price.currency,
-        source: data.prices.ny_price.source,
+      const toFloat = (val: unknown): number =>
+        typeof val === "number" ? val : parseFloat(String(val));
+
+      const record: GoldPriceInsert = {
+        price: toFloat(data.prices["ny_price"]?.price ?? 0),
+        ny_price: data.prices["ny_price"]
+          ? toFloat(data.prices["ny_price"].price)
+          : undefined,
+        xau_price: data.prices["xau_price"]
+          ? toFloat(data.prices["xau_price"].price)
+          : undefined,
+        sh_price: data.prices["sh_price"]
+          ? toFloat(data.prices["sh_price"].price)
+          : undefined,
+        currency: data.prices["ny_price"]?.currency ?? "USD",
+        source: data.prices["ny_price"]?.source ?? "",
         created_at: data.created_at,
         time_period: data.time_period || "realtime",
       };
 
-      // 根据fieldName设置对应的价格字段，确保都是数字类型
-      Object.entries(data.prices).forEach(([fieldName, priceData]) => {
-        // 确保价格是数字类型
-        const price =
-          typeof priceData.price === "number"
-            ? priceData.price
-            : parseFloat(String(priceData.price));
-        record[fieldName] = price;
-      });
-
       logger.info("💾 准备保存多数据源数据:", record);
-
-      // 记录实际保存的字段及其类型
-      const fieldInfo = Object.keys(record)
-        .filter((key) => key.endsWith("_price"))
-        .map((key) => `${key}=${record[key]}(${typeof record[key]})`)
-        .join(", ");
-
-      logger.info(`📊 价格字段信息: ${fieldInfo}`);
 
       return await this.database.insertRecord(record);
     } catch (error) {
       logger.error("保存多数据源数据失败:", error);
+
       return false;
     }
   }

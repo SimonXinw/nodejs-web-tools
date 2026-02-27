@@ -1,4 +1,4 @@
-﻿// 爬虫配置接口
+// 爬虫配置接口
 export interface ScraperConfig {
   headless?: boolean;
 
