@@ -10,6 +10,8 @@ import { YfdDividendInsert } from "../../src/database/efunds-dividend-database";
 
 import { formatTimestamp } from "../../src/utils/helpers";
 
+import { downloadExcel } from "./downloadLatestExcel";
+
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const EXCEL_PATH = path.resolve(
@@ -129,9 +131,15 @@ const readExcel = (): YfdDividendInsert[] => {
  * 主流程
  */
 const run = async () => {
-  console.log("🚀 开始导入易方达中证红利ETF历史净值数据\n");
+  console.log("🚀 开始同步易方达中证红利ETF历史净值数据\n");
 
-  // 1. 读取 Excel
+  // 1. 下载最新 Excel
+  console.log("⬇️  步骤 1/3：下载最新 Excel...");
+
+  await downloadExcel();
+
+  console.log();
+
   const records = readExcel();
 
   if (records.length === 0) {
@@ -139,14 +147,13 @@ const run = async () => {
     process.exit(1);
   }
 
-  // 打印前3条预览
   console.log("\n📋 数据预览（前3条）:");
   console.table(records.slice(0, 3));
 
   const db = new EFundsDividendDatabase();
 
-  // 2. 清空 yfd_dividend 表
-  console.log("\n🗑️  清空 yfd_dividend 表...");
+  // 3. 清空并重新写入
+  console.log("\n🗑️  步骤 3/3：清空 yfd_dividend 表并写入...");
 
   const deleted = await db.deleteAllRecords();
 
@@ -155,8 +162,7 @@ const run = async () => {
     process.exit(1);
   }
 
-  // 3. 批量插入
-  console.log(`\n💾 批量插入 ${records.length} 条记录...`);
+  console.log(`💾 批量插入 ${records.length} 条记录...`);
 
   const inserted = await db.batchInsert(records);
 

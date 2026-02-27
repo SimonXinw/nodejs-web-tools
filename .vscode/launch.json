@@ -23,6 +23,27 @@
       ]
     },
     {
+      "name": "⬇️ [下载] 易方达历史净值 Excel",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/红利易方达/downloadLatestExcel.ts",
+      "runtimeArgs": ["-r", "ts-node/register"],
+      "env": {
+        "NODE_ENV": "development",
+        "TS_NODE_PROJECT": "${workspaceFolder}/tsconfig.json"
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**", "node_modules/**"],
+      "restart": false,
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ]
+    },
+    {
       "name": "📥 [导入] 易方达历史净值 Excel → Supabase",
       "type": "node",
       "request": "launch",
