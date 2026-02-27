@@ -147,8 +147,8 @@ const run = async () => {
     process.exit(1);
   }
 
-  console.log("\n📋 数据预览（前3条）:");
-  console.table(records.slice(0, 3));
+  console.log("\n📋 数据预览（后3条）:");
+  console.table(records.slice(-3));
 
   const db = new EFundsDividendDatabase();
 
