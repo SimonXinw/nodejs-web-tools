@@ -122,15 +122,21 @@ const readExcel = (): YfdDividendInsert[] => {
 
   rawRecords.reverse();
 
-  // 取正序最后一条（最新一天）的累计净值作为复权基准
-  const latestNetTotsl = rawRecords[rawRecords.length - 1]?.net_totsl ?? 1;
+  // 取正序最后一条（最新一天）作为复权基准
+  const latestRecord = rawRecords[rawRecords.length - 1];
+  const latestNetPrice = latestRecord?.net_price ?? 1;
+  const latestNetTotsl = latestRecord?.net_totsl ?? 1;
+
+  // 前复权净值 = 当日累计净值 × (最新单位净值 / 最新累计净值)
+  // 利用累计净值在分红日不跳空的特性，保证序列连续无缺口
+  // 最新一天结果 = latestNetTotsl × (latestNetPrice/latestNetTotsl) = latestNetPrice ✓
+  const adjFactor = latestNetTotsl > 0 ? latestNetPrice / latestNetTotsl : 1;
 
   const records: YfdDividendInsert[] = rawRecords.map((row) => ({
     ...row,
-    // 前复权净值 = 单位净值 × (最新累计净值 / 当日累计净值)
     adj_net_price:
       row.net_totsl > 0
-        ? parseFloat((row.net_price * (latestNetTotsl / row.net_totsl)).toFixed(4))
+        ? parseFloat((row.net_totsl * adjFactor).toFixed(4))
         : row.net_price,
   }));
 
