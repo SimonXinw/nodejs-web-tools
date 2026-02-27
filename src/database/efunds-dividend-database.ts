@@ -19,6 +19,8 @@ export interface YfdDividendRecord {
   net_totsl: number;
 
   net_scale: number;
+
+  adj_net_price: number;
 }
 
 /**

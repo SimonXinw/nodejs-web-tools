@@ -109,7 +109,7 @@ const readExcel = (): YfdDividendInsert[] => {
 
   const createdAt = formatTimestamp();
 
-  const records: YfdDividendInsert[] = rows
+  const rawRecords = rows
     .filter((row) => row[COL_DATE] != null && row[COL_NET_PRICE] != null)
     .map((row) => ({
       date: formatDate(row[COL_DATE]),
@@ -120,9 +120,21 @@ const readExcel = (): YfdDividendInsert[] => {
       created_at: createdAt,
     }));
 
-  records.reverse();
+  rawRecords.reverse();
 
-  console.log(`✅ 有效数据 ${records.length} 条（已转为正序）`);
+  // 取正序最后一条（最新一天）的累计净值作为复权基准
+  const latestNetTotsl = rawRecords[rawRecords.length - 1]?.net_totsl ?? 1;
+
+  const records: YfdDividendInsert[] = rawRecords.map((row) => ({
+    ...row,
+    // 前复权净值 = 单位净值 × (最新累计净值 / 当日累计净值)
+    adj_net_price:
+      row.net_totsl > 0
+        ? parseFloat((row.net_price * (latestNetTotsl / row.net_totsl)).toFixed(4))
+        : row.net_price,
+  }));
+
+  console.log(`✅ 有效数据 ${records.length} 条（已转为正序，含前复权净值）`);
 
   return records;
 };
