@@ -81,8 +81,9 @@ class Application {
    * 设置定时任务
    */
   private setupScheduledTasks(): void {
-    const cronExpression =
-      process.env.GOLD_PRICE_SCHEDULE || "0 * * * *";
+    const entry = findScraper(this.scraperKey)!;
+
+    const cronExpression = entry.defaultSchedule;
 
     taskScheduler.addTask(
       this.scraperKey,

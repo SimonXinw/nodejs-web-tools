@@ -26,6 +26,9 @@ export interface ScraperRegistryEntry {
 
   description: string;
 
+  /** 定时执行计划，cron 表达式，北京时间（Asia/Shanghai） */
+  defaultSchedule: string;
+
   create(config: Partial<ScraperConfig>): ScraperAdapter;
 }
 
@@ -40,6 +43,8 @@ export const scraperRegistry: ScraperRegistryEntry[] = [
     name: "金价爬虫",
 
     description: "爬取纽约黄金(ny_price)、XAU现货黄金(xau_price)、沪金价格(sh_price)",
+
+    defaultSchedule: "0 1 * * *",
 
     create(config) {
       const scraper = new GoldPriceScraper(config);
@@ -70,6 +75,8 @@ export const scraperRegistry: ScraperRegistryEntry[] = [
     name: "易方达中证红利ETF净值",
 
     description: "爬取易方达515180单位净值、累计净值、日涨跌幅，存入 yfd_dividend 表",
+
+    defaultSchedule: "0 1 * * *",
 
     create(config) {
       const scraper = new EFundsDividendScraper(config);

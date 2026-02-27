@@ -39,6 +39,58 @@ export abstract class BaseDatabase<TRecord, TInsert> {
   abstract insertRecord(record: TInsert): Promise<boolean>;
 
   /**
+   * 批量插入记录
+   */
+  async batchInsert(records: TInsert[]): Promise<boolean> {
+    try {
+      const { error } = await this.client
+        .from(this.tableName)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(records as any);
+
+      if (error) {
+        logger.error(`批量插入失败 (${this.tableName})`, error);
+
+        return false;
+      }
+
+      logger.info(`成功批量插入 ${records.length} 条记录到 ${this.tableName}`);
+
+      return true;
+    } catch (error) {
+      logger.error(`批量插入异常 (${this.tableName})`, error);
+
+      return false;
+    }
+  }
+
+  /**
+   * 删除表内所有记录
+   */
+  async deleteAllRecords(): Promise<boolean> {
+    try {
+      const { error } = await this.client
+        .from(this.tableName)
+        .delete()
+        .not("id", "is", null);
+
+      if (error) {
+        logger.error(`清空表失败 (${this.tableName})`, error);
+
+        return false;
+      }
+
+      logger.info(`已清空表 ${this.tableName} 的所有记录`);
+
+      return true;
+    } catch (error) {
+      logger.error(`清空表异常 (${this.tableName})`, error);
+
+      return false;
+    }
+  }
+
+  /**
    * 检查数据库连接
    */
   async testConnection(): Promise<boolean> {
