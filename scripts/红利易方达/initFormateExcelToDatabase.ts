@@ -178,12 +178,45 @@ const run = async () => {
 
   const inserted = await db.batchInsert(records);
 
-  if (inserted) {
-    console.log(`\n🎉 导入完成！成功写入 ${records.length} 条记录到 yfd_dividend`);
-  } else {
+  if (!inserted) {
     console.error("❌ 批量插入失败");
     process.exit(1);
   }
+
+  console.log(`\n🎉 导入完成！成功写入 ${records.length} 条记录到 yfd_dividend`);
+
+  // 验证：从 Supabase 回查最新 3 条，与本地计算值对比
+  console.log("\n🔍 验证：回查 Supabase 最新3条数据...\n");
+
+  const remoteRows = await db.getRecentByDate(3);
+
+  // 转换为 date → record 的 Map，方便按日期对比
+  const remoteMap = new Map(remoteRows.map((r) => [r.date, r]));
+
+  const localLast3 = records.slice(-3).reverse();
+
+  const compareRows = localLast3.map((local) => {
+    const remote = remoteMap.get(local.date);
+
+    return {
+      date: local.date,
+      "本地 net_price": local.net_price,
+      "DB net_price": remote?.net_price ?? "—",
+      "本地 net_totsl": local.net_totsl,
+      "DB net_totsl": remote?.net_totsl ?? "—",
+      "本地 adj_net_price": local.adj_net_price,
+      "DB adj_net_price": remote?.adj_net_price ?? "—",
+      匹配:
+        remote &&
+        remote.net_price === local.net_price &&
+        remote.net_totsl === local.net_totsl &&
+        remote.adj_net_price === local.adj_net_price
+          ? "✅"
+          : "❌",
+    };
+  });
+
+  console.table(compareRows);
 };
 
 run().catch((err) => {

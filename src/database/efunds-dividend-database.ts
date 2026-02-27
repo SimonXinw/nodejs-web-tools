@@ -38,6 +38,24 @@ export class EFundsDividendDatabase extends BaseDatabase<YfdDividendRecord, YfdD
   }
 
   /**
+   * 按日期倒序查询最近 N 条记录
+   */
+  async getRecentByDate(limit: number = 5): Promise<YfdDividendRecord[]> {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select("date, net_price, net_totsl, adj_net_price")
+      .order("date", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      logger.error("按日期查询记录失败", error);
+      return [];
+    }
+
+    return (data || []) as YfdDividendRecord[];
+  }
+
+  /**
    * 插入净值记录
    */
   async insertRecord(record: YfdDividendInsert): Promise<boolean> {
