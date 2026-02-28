@@ -84,7 +84,7 @@ export const scraperRegistry: ScraperRegistryEntry[] = [
       return {
         testDatabaseConnection: () => scraper.testDatabaseConnection(),
 
-        runTask: () => scraper.scrapeAndSave(),
+        runTask: () => scraper.scrapeMarketPriceAndSave(),
 
         getHistoricalData: (limit) => scraper.getHistoricalData(limit),
       };

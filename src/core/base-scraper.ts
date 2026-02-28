@@ -148,10 +148,18 @@ export abstract class BaseScraper<T extends ScrapedData> {
    * 创建新页面
    */
   protected async createPage(): Promise<Page> {
-    // 检查浏览器上下文是否有效
-    if (!this.context || this.browser?.isConnected() === false) {
-      logger.info("浏览器上下文无效，重新初始化...");
-      await this.cleanup();
+    const needsInit = !this.context || this.browser?.isConnected() === false;
+
+    if (needsInit) {
+      const isReconnect = !!(this.context || this.browser);
+
+      if (isReconnect) {
+        logger.info("浏览器连接断开，重新初始化...");
+        await this.cleanup();
+      } else {
+        logger.info("正在初始化浏览器...");
+      }
+
       await this.initBrowser();
     }
 

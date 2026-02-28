@@ -47,7 +47,6 @@ export interface MarketPriceData {
   rawChange: string;
 }
 
-
 /**
  * 解析净值文本为 float，去除 %、空格等干扰字符
  */
@@ -89,6 +88,8 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
 
     this.database = new EFundsDividendDatabase();
   }
+
+  // ─── efunds.com.cn 净值爬取 ────────────────────────────────────────────────
 
   /**
    * 访问页面，携带模拟真实浏览器的请求头
@@ -143,8 +144,10 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
       const text = await page.$eval(selector, (el) => el.textContent || "");
 
       return text.trim();
-    } catch (error: any) {
-      logger.warn(`⚠️ 读取元素 ${selector} 失败: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+
+      logger.warn(`⚠️ 读取元素 ${selector} 失败: ${msg}`);
 
       return "";
     }
@@ -198,6 +201,8 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
         net_totsl: netTotsl,
         net_scale: netScale,
         adj_net_price: netPrice,
+        ma250: null,
+        nav_ma250_deviation_pct: null,
         created_at: formatTimestamp(),
       };
 
@@ -206,7 +211,7 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
       );
 
       return result;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("易方达净值爬取过程中发生错误:", error);
 
       try {
@@ -229,14 +234,19 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
     }
   }
 
+  // ─── aastocks 场内价格 ────────────────────────────────────────────────────
+
   /**
    * 从 HTML 字符串中提取指定 id 元素的文本内容
+   * 支持元素内有嵌套子标签（如 <span>），提取后自动剥去所有 HTML 标签
    */
   private extractTextById(html: string, id: string): string | null {
-    const regex = new RegExp(`id=["']${id}["'][^>]*>([^<]*)<`);
+    const regex = new RegExp(`id=["']${id}["'][^>]*>([\\s\\S]*?)<\\/[a-z]+>`, "i");
     const match = html.match(regex);
 
-    return match ? match[1].trim() : null;
+    if (!match) return null;
+
+    return match[1].replace(/<[^>]*>/g, "").trim();
   }
 
   /**
@@ -436,11 +446,140 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
     return null;
   }
 
+  // ─── MA250 与增量插入 ──────────────────────────────────────────────────────
+
+  /**
+   * 获取北京时区当日日期，格式 YYYY-MM-DD
+   */
+  private getBeijingDateString(): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }
+
+  /**
+   * 计算滑动 MA(n)，数据不足时返回 null
+   */
+  private calcMA(prices: number[], n: number): number | null {
+    if (prices.length < n) return null;
+
+    const slice = prices.slice(prices.length - n);
+    const avg = slice.reduce((a, b) => a + b, 0) / n;
+
+    return parseFloat(avg.toFixed(4));
+  }
+
+  /**
+   * 统一采集入口：HTTP aastocks → 降级 Playwright efunds.com.cn
+   * 计算 MA250 及偏离度后增量插入，同日已存在则跳过
+   */
+  public async scrapeMarketPriceAndSave(): Promise<boolean> {
+    logger.info("🚀 开始执行每日价格增量采集任务...");
+
+    // ── 归一化字段（两个数据源共用）
+    let adjPrice: number;
+    let netPrice: number;
+    let netTotsl: number | null;
+    let netScale: number;
+    let date: string;
+    let source: string;
+
+    // ── 策略 1：HTTP 直连 aastocks（无需浏览器）
+    try {
+      logger.info("⬆️  [策略1] HTTP aastocks...");
+
+      const market = await this.fetchMarketPriceViaHttp();
+
+      adjPrice  = market.price;
+      netPrice  = market.price;
+      netTotsl  = null;
+      netScale  = market.changePct ?? 0;
+      date      = this.getBeijingDateString();
+      source    = "aastocks.com";
+
+      logger.info(`✅ [策略1] 价格: ${adjPrice}, 涨跌: ${market.rawChange}`);
+    } catch (e1: unknown) {
+      const msg1 = e1 instanceof Error ? e1.message : String(e1);
+
+      logger.warn(`⚠️  [策略1] HTTP 失败: ${msg1}，降级 Playwright efunds.com.cn...`);
+
+      // ── 策略 2：Playwright efunds.com.cn（带重试）
+      const efunds = await this.scrape();
+
+      if (!efunds) {
+        logger.error("❌ [策略2] efunds 也失败，任务终止");
+        return false;
+      }
+
+      adjPrice  = efunds.net_price;
+      netPrice  = efunds.net_price;
+      netTotsl  = efunds.net_totsl;
+      netScale  = efunds.net_scale;
+      date      = efunds.date;
+      source    = TARGET_URL;
+
+      logger.info(`✅ [策略2] 净值: ${adjPrice}, 累计净值: ${netTotsl}, 涨跌: ${netScale}%`);
+    }
+
+    logger.info(`📅 日期: ${date}, adj_price: ${adjPrice}`);
+
+    // ── 去重：当日已存在则跳过
+    const exists = await this.database.existsByDate(date);
+
+    if (exists) {
+      logger.info(`⏭️  ${date} 数据已存在，跳过插入`);
+      return true;
+    }
+
+    // ── MA250 计算
+    const histPrices = await this.database.getRecentAdjPricesForMA(249);
+
+    const allPrices = [...histPrices, adjPrice];
+
+    const ma250 = this.calcMA(allPrices, 250);
+
+    const devPct =
+      ma250 !== null
+        ? parseFloat(((adjPrice / ma250 - 1) * 100).toFixed(4))
+        : null;
+
+    logger.info(
+      `📊 MA250: ${ma250 ?? "数据不足（历史不足250条）"}, 偏离度: ${devPct !== null ? devPct + "%" : "—"}`
+    );
+
+    // ── 插入
+    const record: YfdDividendInsert = {
+      date,
+      source,
+      net_price: netPrice,
+      net_totsl: netTotsl,
+      net_scale: netScale,
+      adj_net_price: adjPrice,
+      ma250,
+      nav_ma250_deviation_pct: devPct,
+      created_at: formatTimestamp(),
+    };
+
+    const saved = await this.database.insertRecord(record);
+
+    if (saved) {
+      logger.info(`✅ 增量插入成功 | date=${date} adj=${adjPrice} ma250=${ma250} dev=${devPct}%`);
+    } else {
+      logger.error("❌ 增量插入失败");
+    }
+
+    return saved;
+  }
+
+  // ─── efunds 净值完整流程 ───────────────────────────────────────────────────
+
   /**
    * 保存数据到 yfd_dividend 表
    */
   public async saveToDatabase(data: EFundsScrapeResult): Promise<boolean> {
-    // 实时爬取场景：当日即为最新，前复权净值 = 单位净值（无历史分红调整）
     const record: YfdDividendInsert = {
       date: data.date,
       source: data.source,
@@ -448,6 +587,8 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
       net_totsl: data.net_totsl,
       net_scale: data.net_scale,
       adj_net_price: data.net_price,
+      ma250: data.ma250,
+      nav_ma250_deviation_pct: data.nav_ma250_deviation_pct,
       created_at: data.created_at,
     };
 

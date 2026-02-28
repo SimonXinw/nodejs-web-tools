@@ -132,7 +132,8 @@ const readExcel = (): YfdDividendInsert[] => {
   // 最新一天结果 = latestNetTotsl × (latestNetPrice/latestNetTotsl) = latestNetPrice ✓
   const adjFactor = latestNetTotsl > 0 ? latestNetPrice / latestNetTotsl : 1;
 
-  const records: YfdDividendInsert[] = rawRecords.map((row) => ({
+  // 第一步：计算前复权净值
+  const withAdj = rawRecords.map((row) => ({
     ...row,
     adj_net_price:
       row.net_totsl > 0
@@ -140,7 +141,30 @@ const readExcel = (): YfdDividendInsert[] => {
         : row.net_price,
   }));
 
-  console.log(`✅ 有效数据 ${records.length} 条（已转为正序，含前复权净值）`);
+  // 第二步：在全量正序数组上计算 MA250 滑动窗口及偏离度
+  const adjPrices = withAdj.map((r) => r.adj_net_price);
+
+  const MA_N = 250;
+
+  const records: YfdDividendInsert[] = withAdj.map((row, index) => {
+    const ma250 =
+      index >= MA_N - 1
+        ? parseFloat(
+            (
+              adjPrices.slice(index - MA_N + 1, index + 1).reduce((a, b) => a + b, 0) / MA_N
+            ).toFixed(4)
+          )
+        : null;
+
+    const nav_ma250_deviation_pct =
+      ma250 !== null
+        ? parseFloat(((row.adj_net_price / ma250 - 1) * 100).toFixed(4))
+        : null;
+
+    return { ...row, ma250, nav_ma250_deviation_pct };
+  });
+
+  console.log(`✅ 有效数据 ${records.length} 条（已转为正序，含前复权净值、MA250、偏离度）`);
 
   return records;
 };
