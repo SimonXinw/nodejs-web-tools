@@ -76,7 +76,7 @@ export const scraperRegistry: ScraperRegistryEntry[] = [
 
     description: "爬取易方达515180单位净值、累计净值、日涨跌幅，存入 yfd_dividend 表",
 
-    defaultSchedule: "0 1 * * *",
+    defaultSchedule: "30 23 * * *",
 
     create(config) {
       const scraper = new EFundsDividendScraper(config);

@@ -321,13 +321,30 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
 
     const html = await resp.text();
 
-    const priceText = this.extractTextById(html, "SQ_Last");
+    const priceText  = this.extractTextById(html, "SQ_Last");
     const changeText = this.extractTextById(html, "SQ_Change");
+    const updateText = this.extractTextById(html, "sb2-last-update");
 
     if (!priceText || !changeText) {
       throw new Error(
         `页面元素未找到 (SQ_Last=${priceText}, SQ_Change=${changeText})，可能被反爬`
       );
+    }
+
+    // 校验数据日期：取 "2026/02/27 15:10" 的日期部分，与北京当日比较
+    if (updateText) {
+      const dataDate  = updateText.split(" ")[0].replace(/\//g, "-"); // "2026-02-27"
+      const todayDate = this.getBeijingDateString();                   // "2026-02-28"
+
+      logger.info(`📡 aastocks 数据更新时间: ${updateText}，北京今日: ${todayDate}`);
+
+      if (dataDate !== todayDate) {
+        throw new Error(
+          `aastocks 数据尚未更新至今日（数据日期: ${dataDate}，今日: ${todayDate}）`
+        );
+      }
+    } else {
+      logger.warn("⚠️ 未找到 sb2-last-update，跳过日期校验");
     }
 
     const price = parseFloat(priceText);
