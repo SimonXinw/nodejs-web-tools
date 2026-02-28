@@ -278,7 +278,7 @@ const resolveScraperKey = async (args: string[]): Promise<string> => {
 
     const app = new Application(scraperKey);
 
-    console.log("手动执行模式 >>>>>>>>", process.env);
+    logger.info(`手动执行模式，爬虫: ${scraperKey}`);
 
     try {
       await app.manualScrape();
