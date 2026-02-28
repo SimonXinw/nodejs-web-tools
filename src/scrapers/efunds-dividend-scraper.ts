@@ -15,10 +15,37 @@ import { logger } from "../utils/logger";
 
 const TARGET_URL = "https://www.efunds.com.cn/fund/515180.shtml";
 
+const FUND_CODE = "515180";
+
+const AASTOCKS_WARMUP_URL =
+  "https://www.aastocks.com/tc/cnhk/quote/quick-quote.aspx";
+
+const AASTOCKS_TARGET_URL =
+  `https://www.aastocks.com/tc/cnhk/analysis/company-fundamental/` +
+  `company-information?shsymbol=${FUND_CODE}`;
+
+/** 轮换 User-Agent 池，降低被识别风险 */
+const USER_AGENT_POOL = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0",
+];
+
 /**
  * 爬虫内部结果类型：YfdDividendInsert + price（满足 BaseScraper 的 ScrapedData 约定）
  */
 type EFundsScrapeResult = YfdDividendInsert & { price: number };
+
+/**
+ * aastocks 场内价格数据
+ */
+export interface MarketPriceData {
+  symbol: string;
+  price: number;
+  change: number | null;
+  changePct: number | null;
+  rawChange: string;
+}
 
 
 /**
@@ -170,6 +197,7 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
         net_price: netPrice,
         net_totsl: netTotsl,
         net_scale: netScale,
+        adj_net_price: netPrice,
         created_at: formatTimestamp(),
       };
 
@@ -202,15 +230,224 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
   }
 
   /**
+   * 从 HTML 字符串中提取指定 id 元素的文本内容
+   */
+  private extractTextById(html: string, id: string): string | null {
+    const regex = new RegExp(`id=["']${id}["'][^>]*>([^<]*)<`);
+    const match = html.match(regex);
+
+    return match ? match[1].trim() : null;
+  }
+
+  /**
+   * 解析涨跌文本，例如 "+0.015 (1.042%)" → { change, changePct }
+   */
+  private parseChangeText(text: string): {
+    change: number | null;
+    changePct: number | null;
+  } {
+    const match = text.match(/([+-]?\d+\.?\d*)\s*\(([+-]?\d+\.?\d*)%\)/);
+
+    if (match) {
+      return {
+        change: parseFloat(match[1]),
+        changePct: parseFloat(match[2]),
+      };
+    }
+
+    return { change: null, changePct: null };
+  }
+
+  /**
+   * 方式一：直接 HTTP fetch 获取场内价格
+   * 先访问热身页面复用 Cookie，再访问目标页面解析数据
+   */
+  private async fetchMarketPriceViaHttp(): Promise<MarketPriceData> {
+    const userAgent =
+      USER_AGENT_POOL[Math.floor(Math.random() * USER_AGENT_POOL.length)];
+
+    const baseHeaders: Record<string, string> = {
+      "User-Agent": userAgent,
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Cache-Control": "max-age=0",
+      "Upgrade-Insecure-Requests": "1",
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": "same-origin",
+      "Sec-Fetch-User": "?1",
+    };
+
+    // 热身请求，获取 Cookie
+    logger.info("🌐 [HTTP] 热身请求中...");
+
+    const warmupResp = await fetch(AASTOCKS_WARMUP_URL, {
+      headers: baseHeaders,
+    });
+
+    const rawCookies = warmupResp.headers.getSetCookie
+      ? warmupResp.headers.getSetCookie()
+      : [];
+
+    const cookieStr = rawCookies.map((c) => c.split(";")[0]).join("; ");
+
+    // 正式请求
+    const mainHeaders: Record<string, string> = {
+      ...baseHeaders,
+      Referer: AASTOCKS_WARMUP_URL,
+      "Sec-Fetch-Site": "same-origin",
+      ...(cookieStr ? { Cookie: cookieStr } : {}),
+    };
+
+    logger.info("🌐 [HTTP] 请求目标页面...");
+
+    const resp = await fetch(AASTOCKS_TARGET_URL, { headers: mainHeaders });
+
+    if (!resp.ok) {
+      throw new Error(`HTTP 请求失败: ${resp.status} ${resp.statusText}`);
+    }
+
+    const html = await resp.text();
+
+    const priceText = this.extractTextById(html, "SQ_Last");
+    const changeText = this.extractTextById(html, "SQ_Change");
+
+    if (!priceText || !changeText) {
+      throw new Error(
+        `页面元素未找到 (SQ_Last=${priceText}, SQ_Change=${changeText})，可能被反爬`
+      );
+    }
+
+    const price = parseFloat(priceText);
+
+    if (isNaN(price) || price <= 0) {
+      throw new Error(`价格解析失败，原始值: "${priceText}"`);
+    }
+
+    const { change, changePct } = this.parseChangeText(changeText);
+
+    return {
+      symbol: FUND_CODE,
+      price,
+      change,
+      changePct,
+      rawChange: changeText,
+    };
+  }
+
+  /**
+   * 方式二：Playwright 浏览器获取场内价格（降级备用）
+   */
+  private async fetchMarketPriceViaPlaywright(): Promise<MarketPriceData> {
+    const page = await this.createPage();
+
+    try {
+      logger.info("🌐 [Playwright] 热身请求中...");
+
+      await page.goto(AASTOCKS_WARMUP_URL, {
+        waitUntil: "domcontentloaded",
+        timeout: this.config.timeout,
+      });
+
+      logger.info("🌐 [Playwright] 请求目标页面...");
+
+      await page.goto(AASTOCKS_TARGET_URL, {
+        waitUntil: "domcontentloaded",
+        timeout: this.config.timeout,
+      });
+
+      const priceText = await this.readElementBySelectorText(page, "#SQ_Last");
+      const changeText = await this.readElementBySelectorText(
+        page,
+        "#SQ_Change"
+      );
+
+      if (!priceText) {
+        const screenshotPath = `debug-aastocks-${Date.now()}.png`;
+
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+
+        throw new Error(`SQ_Last 元素为空，已截图: ${screenshotPath}`);
+      }
+
+      const price = parseFloat(priceText);
+
+      if (isNaN(price) || price <= 0) {
+        throw new Error(`价格解析失败，原始值: "${priceText}"`);
+      }
+
+      const { change, changePct } = this.parseChangeText(changeText);
+
+      return {
+        symbol: FUND_CODE,
+        price,
+        change,
+        changePct,
+        rawChange: changeText,
+      };
+    } finally {
+      try {
+        await page.close();
+      } catch {
+        logger.warn("关闭 Playwright 页面时出现错误");
+      }
+    }
+  }
+
+  /**
+   * 获取 ETF 场内实时价格
+   * 按顺序尝试各种方式，成功立即返回，全部失败返回 null
+   */
+  public async fetchMarketPrice(): Promise<MarketPriceData | null> {
+    logger.info("🔍 开始获取 515180 场内价格...");
+
+    const strategies: Array<{
+      name: string;
+      fn: () => Promise<MarketPriceData>;
+    }> = [
+      { name: "HTTP", fn: () => this.fetchMarketPriceViaHttp() },
+      { name: "Playwright", fn: () => this.fetchMarketPriceViaPlaywright() },
+    ];
+
+    for (const [index, { name, fn }] of strategies.entries()) {
+      try {
+        const result = await fn();
+
+        logger.info(
+          `✅ [${name}] 场内价格获取成功 - 价格: ${result.price}, 涨跌: ${result.rawChange}`
+        );
+
+        return result;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+
+        const isLast = index === strategies.length - 1;
+
+        if (isLast) {
+          logger.error(`❌ [${name}] 失败: ${msg}，所有方式均已耗尽`);
+        } else {
+          logger.warn(`⚠️ [${name}] 失败: ${msg}，尝试下一种方式...`);
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * 保存数据到 yfd_dividend 表
    */
   public async saveToDatabase(data: EFundsScrapeResult): Promise<boolean> {
+    // 实时爬取场景：当日即为最新，前复权净值 = 单位净值（无历史分红调整）
     const record: YfdDividendInsert = {
       date: data.date,
       source: data.source,
       net_price: data.net_price,
       net_totsl: data.net_totsl,
       net_scale: data.net_scale,
+      adj_net_price: data.net_price,
       created_at: data.created_at,
     };
 
