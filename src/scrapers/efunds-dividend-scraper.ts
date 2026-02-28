@@ -48,6 +48,16 @@ export interface MarketPriceData {
 }
 
 /**
+ * 数据源当日尚未更新，不需要降级、只需跳过
+ */
+class DataNotYetUpdatedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DataNotYetUpdatedError";
+  }
+}
+
+/**
  * 解析净值文本为 float，去除 %、空格等干扰字符
  */
 const parseNetValue = (text: string): number => {
@@ -339,7 +349,7 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
       logger.info(`📡 aastocks 数据更新时间: ${updateText}，北京今日: ${todayDate}`);
 
       if (dataDate !== todayDate) {
-        throw new Error(
+        throw new DataNotYetUpdatedError(
           `aastocks 数据尚未更新至今日（数据日期: ${dataDate}，今日: ${todayDate}）`
         );
       }
@@ -519,6 +529,12 @@ export class EFundsDividendScraper extends BaseScraper<EFundsScrapeResult> {
 
       logger.info(`✅ [策略1] 价格: ${adjPrice}, 涨跌: ${market.rawChange}`);
     } catch (e1: unknown) {
+      // 数据尚未更新，今日无需爬取，直接结束
+      if (e1 instanceof DataNotYetUpdatedError) {
+        logger.info(`⏸️  [策略1] ${e1.message}，今日暂不采集`);
+        return true;
+      }
+
       const msg1 = e1 instanceof Error ? e1.message : String(e1);
 
       logger.warn(`⚠️  [策略1] HTTP 失败: ${msg1}，降级 Playwright efunds.com.cn...`);
