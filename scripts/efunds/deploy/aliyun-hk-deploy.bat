@@ -99,7 +99,7 @@ echo     upload done, staging cleaned
 :: === Step 5: remote start ==================================================
 echo.
 echo [5/5] starting remote service...
-"%SCRIPT_DIR%plink.exe" -batch -pw %SERVER_PWD% %SERVER_USER%@%SERVER_IP% "sed -i 's/\r//' %SERVER_PATH%/scripts/efunds/deploy/efunds-server-start.sh && chmod +x %SERVER_PATH%/scripts/efunds/deploy/efunds-server-start.sh && bash %SERVER_PATH%/scripts/efunds/deploy/efunds-server-start.sh %SETUP_FLAG%"
+"%SCRIPT_DIR%plink.exe" -batch -pw %SERVER_PWD% %SERVER_USER%@%SERVER_IP% "find %SERVER_PATH% -name '*.sh' -exec sed -i 's/\r//' {} + && chmod +x %SERVER_PATH%/scripts/efunds/deploy/efunds-server-start.sh && bash %SERVER_PATH%/scripts/efunds/deploy/efunds-server-start.sh %SETUP_FLAG%"
 if errorlevel 1 (
   echo [ERROR] remote start failed
   goto :ERROR
